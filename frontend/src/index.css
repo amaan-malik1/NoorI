@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 14% 7%;
+    --foreground: 45 20% 93%;
+    --radius: 10px;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-dm;
+    min-height: 100vh;
+  }
+
+  /* ── Scrollbar ─────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-subtle rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-border-strong;
+  }
+
+  /* ── Selection ─────────────────────────────────────────── */
+  ::selection {
+    background: rgba(245, 166, 35, 0.2);
+    color: #F5A623;
+  }
+
+  /* ── Focus ring ────────────────────────────────────────── */
+  :focus-visible {
+    outline: 2px solid rgba(245, 166, 35, 0.6);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ── Card ───────────────────────────────────────────────── */
+  .card {
+    @apply bg-background-surface border border-border rounded-lg;
+  }
+
+  .card-elevated {
+    @apply bg-background-elevated border border-border-subtle rounded-lg shadow-elevated;
+  }
+
+  /* ── Amber glow border ──────────────────────────────────── */
+  .border-amber-glow {
+    border-color: rgba(245, 166, 35, 0.3);
+    box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.1);
+  }
+
+  /* ── Text gradient amber ────────────────────────────────── */
+  .text-gradient-amber {
+    background: linear-gradient(135deg, #F5A623 0%, #FCD34D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Grid bg ────────────────────────────────────────────── */
+  .bg-grid {
+    background-image: linear-gradient(rgba(245,166,35,0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(245,166,35,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* ── Noise overlay ──────────────────────────────────────── */
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ── Input base ─────────────────────────────────────────── */
+  .input-base {
+    @apply w-full bg-background-elevated border border-border rounded-md px-4 py-2.5
+           text-foreground text-sm placeholder:text-foreground-subtle
+           focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20
+           transition-all duration-200;
+  }
+
+  /* ── Button variants ────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-amber-500 hover:bg-amber-400 text-background
+           font-dm font-medium text-sm rounded-md px-5 py-2.5
+           transition-all duration-200 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-background-elevated hover:bg-background-overlay
+           border border-border hover:border-border-subtle
+           text-foreground font-dm font-medium text-sm rounded-md px-5 py-2.5
+           transition-all duration-200 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           hover:bg-background-elevated
+           text-foreground-muted hover:text-foreground
+           font-dm text-sm rounded-md px-3 py-2
+           transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-danger/10 hover:bg-danger/20
+           border border-danger/20 hover:border-danger/40
+           text-danger-text font-dm font-medium text-sm rounded-md px-5 py-2.5
+           transition-all duration-200 active:scale-[0.98];
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+}

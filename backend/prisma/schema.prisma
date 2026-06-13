@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum SubscriptionPlan {
+  free
+  pro
+}
+
+enum DeviceType {
+  ios
+  macos
+  android
+  windows
+  router
+}
+
+enum ActivityAction {
+  allowed
+  blocked
+  overridden
+}
+
+// ─── User ───────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  emailVerified       Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpiry   DateTime?
+  passwordResetToken  String?   @unique
+  passwordResetExpiry DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions Session[]
+  account  Account?
+
+  @@index([email])
+}
+
+// ─── Session ────────────────────────────────────────────
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+// ─── Account ─────────────────────────────────────────────
+
+model Account {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  // Profile locking
+  isLocked       Boolean @default(false)
+  lockPin        String? // bcrypt hashed
+  lockoutEnabled Boolean @default(true)
+
+  // Cloudflare (Day 2)
+  cfConnected     Boolean   @default(false)
+  cfAccountId     String?
+  cfAccountEmail  String?
+  cloudflareToken String? // AES-256-GCM encrypted scoped token
+  cfZoneId        String?
+  cfGatewayId     String?
+  cfTeamName      String?
+  lastSyncAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policies     ContentPolicy[]
+  devices      Device[]
+  activityLogs ActivityLog[]
+  subscription Subscription?
+
+  @@index([userId])
+}
+
+// ─── ContentPolicy ───────────────────────────────────────
+
+model ContentPolicy {
+  id        String @id @default(uuid())
+  accountId String
+  name      String @default("Default Policy")
+
+  // Blocked category IDs (from Cloudflare)
+  blockedCategories Int[]
+
+  // Custom domain lists
+  blockedDomains String[]
+  allowedDomains String[]
+
+  // SafeSearch
+  safeSearchEnabled Boolean @default(false)
+
+  // CF Gateway policy ID (after push)
+  cfPolicyId String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+// ─── Device ──────────────────────────────────────────────
+
+model Device {
+  id        String     @id @default(uuid())
+  accountId String
+  name      String
+  type      DeviceType
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  account Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  config  DeviceConfig?
+
+  @@index([accountId])
+}
+
+// ─── DeviceConfig ────────────────────────────────────────
+
+model DeviceConfig {
+  id       String @id @default(uuid())
+  deviceId String @unique
+
+  // iOS/macOS MDM restrictions stored as JSON
+  restrictions Json @default("{}")
+
+  cfConfigHash String? // used to detect stale configs
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+// ─── ActivityLog ─────────────────────────────────────────
+
+model ActivityLog {
+  id         String         @id @default(uuid())
+  accountId  String
+  domain     String
+  action     ActivityAction
+  categoryId Int?
+  policyId   String?
+  cfLogId    String?        @unique // dedup key from CF
+  timestamp  DateTime
+  createdAt  DateTime       @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, timestamp(sort: Desc)])
+  @@index([accountId, action])
+  @@index([domain])
+  @@index([cfLogId])
+}
+
+// ─── Subscription ────────────────────────────────────────
+
+model Subscription {
+  id        String @id @default(uuid())
+  accountId String @unique
+
+  plan SubscriptionPlan @default(free)
+
+  // Stripe (international)
+  stripeCustomerId String? @unique
+  stripeSubId      String? @unique
+
+  // Razorpay (India)
+  razorpayCustomerId     String? @unique
+  razorpaySubscriptionId String? @unique
+
+  // Shared
+  gateway           String? // 'stripe' | 'razorpay'
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
