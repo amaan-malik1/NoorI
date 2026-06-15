@@ -1,6 +1,5 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
-import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js'
 import { generateSecureToken, daysFromNow, minutesFromNow } from '../utils/tokens.js'
@@ -10,38 +9,11 @@ import {
   sendPasswordResetEmail,
   sendWelcomeEmail,
 } from '../services/email.service.js'
+import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema, schema } from '../types/validationSchema.js'
 
-// ─── Validation schemas ───────────────────────────────────
 
-const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
-    .regex(/[0-9]/, 'Password must contain a number'),
-})
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1, 'Password is required'),
-})
-
-const forgotPasswordSchema = z.object({
-  email: z.string().email(),
-})
-
-const resetPasswordSchema = z.object({
-  token: z.string().min(1),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
-    .regex(/[0-9]/, 'Password must contain a number'),
-})
-
-// ─── Cookie config ────────────────────────────────────────
-
+//COOKIE setup
 const REFRESH_COOKIE = 'Noori_refresh'
 
 function setRefreshCookie(res: Response, token: string) {
@@ -49,7 +21,7 @@ function setRefreshCookie(res: Response, token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 day in ms
     path: '/',
   })
 }
@@ -58,7 +30,6 @@ function clearRefreshCookie(res: Response) {
   res.clearCookie(REFRESH_COOKIE, { path: '/' })
 }
 
-// ─── Controllers ─────────────────────────────────────────
 
 export async function register(req: Request, res: Response) {
   const body = registerSchema.parse(req.body)
@@ -70,9 +41,9 @@ export async function register(req: Request, res: Response) {
   })
 
   if (existing) {
-    // Return same message to prevent email enumeration
+
     return sendSuccess(res, null, {
-      message: 'If this email is not registered, you will receive a verification link.',
+      message: 'User already exist! Use a differnt email',
       status: 201,
     })
   }
@@ -399,17 +370,6 @@ export async function resetPassword(req: Request, res: Response) {
 }
 
 export async function updateProfile(req: Request, res: Response) {
-  const schema = z.object({
-    email: z.string().email().optional(),
-    currentPassword: z.string().optional(),
-    newPassword: z
-      .string()
-      .min(8)
-      .regex(/[A-Z]/)
-      .regex(/[0-9]/)
-      .optional(),
-  })
-
   const body = schema.parse(req.body)
 
   const user = await prisma.user.findUnique({

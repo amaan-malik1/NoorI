@@ -21,7 +21,7 @@ import Toggle from '@/components/ui/Toggle'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
 
-// ── Tab config ────────────────────────────────────────────
+// Tab config 
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: <User size={15} /> },
@@ -30,7 +30,7 @@ const TABS = [
   { id: 'billing', label: 'Billing', icon: <CreditCard size={15} /> },
 ]
 
-// ── Section wrapper ───────────────────────────────────────
+// Section wrapper 
 
 function Section({
   title,
@@ -54,12 +54,12 @@ function Section({
   )
 }
 
-// ── Divider ───────────────────────────────────────────────
+// Divider 
 function Divider() {
   return <div className="border-t border-border" />
 }
 
-// ── Profile Tab ───────────────────────────────────────────
+// Profile Tab 
 
 function ProfileTab() {
   const { user } = useAuth()
@@ -172,7 +172,7 @@ function ProfileTab() {
   )
 }
 
-// ── Locking Tab ───────────────────────────────────────────
+// Locking Tab 
 
 function LockingTab() {
   const { data: account } = useAccount()

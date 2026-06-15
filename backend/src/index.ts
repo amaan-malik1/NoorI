@@ -11,10 +11,10 @@ import { startLogSyncScheduler } from './workers/logSync.worker.js'
 
 const app = express()
 
-// ─── Security headers ─────────────────────────────────────
+// Security headers 
 app.use(helmet())
 
-// ─── CORS ─────────────────────────────────────────────────
+// CORS 
 const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
 
 app.use(
@@ -31,30 +31,29 @@ app.use(
   })
 )
 
-// ─── Body parsing ─────────────────────────────────────────
+// Body parsing 
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
 
-// ─── Health check ─────────────────────────────────────────
+// Health check 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// ─── API Routes ───────────────────────────────────────────
+// API Routes 
 app.use('/api', routes)
 
-// ─── 404 handler ──────────────────────────────────────────
+// 404 handler 
 app.use(notFoundHandler)
 
-// ─── Global error handler ─────────────────────────────────
+// Global error handler 
 app.use(errorHandler)
 
-// ─── Start ────────────────────────────────────────────────
+// Start 
 async function start() {
   try {
     // Connect Redis
-    // await redis.connect()
     if (redis.status === 'wait') {
       await redis.connect()
     }
@@ -64,19 +63,19 @@ async function start() {
     console.log('✅  Database connected')
 
     app.listen(env.PORT, () => {
-      console.log(`🚀  Noori API running on http://localhost:${env.PORT}`)
-      console.log(`    Environment: ${env.NODE_ENV}`)
+      console.log(`Noori API running on http://localhost:${env.PORT}`)
+      console.log(`Environment: ${env.NODE_ENV}`)
     })
 
     // Start BullMQ log sync scheduler
     await startLogSyncScheduler()
   } catch (err) {
-    console.error('❌  Failed to start server:', err)
+    console.error('❌ Failed to start server:', err)
     process.exit(1)
   }
 }
 
-// ─── Graceful shutdown ────────────────────────────────────
+// Graceful shutdown 
 process.on('SIGINT', async () => {
   console.log('\nShutting down...')
   await prisma.$disconnect()

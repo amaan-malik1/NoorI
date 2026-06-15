@@ -8,6 +8,7 @@ export interface AccountData {
   isLocked: boolean
   lockoutEnabled: boolean
   cfConnected: boolean
+  lockPin: string
   cfAccountEmail: string | null
   cfAccountId: string | null
   cfGatewayId: string | null
@@ -25,7 +26,7 @@ export interface BillingStatus {
   gatewaysAvailable: { stripe: boolean; razorpay: boolean }
 }
 
-// ── Account hooks ─────────────────────────────────────────
+// Account hooks 
 
 export function useAccount() {
   return useQuery<AccountData>({

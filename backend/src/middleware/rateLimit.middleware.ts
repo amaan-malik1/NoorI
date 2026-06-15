@@ -3,19 +3,16 @@ import { redis } from '../config/redis.js'
 import { sendError } from '../utils/response.js'
 
 interface RateLimitOptions {
-  /** Window in seconds */
   windowSec: number
-  /** Max requests in the window */
   max: number
-  /** Key prefix so different routes have separate buckets */
   keyPrefix?: string
 }
 
-/**
- * Redis sliding-window rate limiter.
- * Keyed by IP address.
- */
+//  * Redis sliding-window rate limiter. Keyed by IP address.
+
+
 export function rateLimit(opts: RateLimitOptions) {
+  //@ts-ignore
   return async (req: Request, res: Response, next: NextFunction) => {
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
@@ -48,16 +45,16 @@ export function rateLimit(opts: RateLimitOptions) {
   }
 }
 
-// ─── Pre-built limiters ───────────────────────────────────
 
-/** 20 attempts per 15 minutes on auth endpoints */
+
+// 20 attempts per 15 minutes on auth endpoints 
 export const authRateLimit = rateLimit({
   windowSec: 15 * 60,
   max: 20,
   keyPrefix: 'auth',
 })
 
-/** 5 password reset requests per hour */
+//5 password reset requests per hour
 export const passwordResetRateLimit = rateLimit({
   windowSec: 60 * 60,
   max: 5,
