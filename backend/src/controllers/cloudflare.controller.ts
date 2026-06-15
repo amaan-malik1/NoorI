@@ -72,12 +72,6 @@ export async function connectCF(req: Request, res: Response) {
     })
   }
 
-  await connectCloudflareAccount(
-    req.user!.accountId,
-    email,
-    globalKey,   // used inside to create scoped token, then discarded
-    cfAccountId
-  )
   const { teamNameFound } = await connectCloudflareAccount(
     req.user!.accountId,
     email,

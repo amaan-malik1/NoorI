@@ -27,7 +27,8 @@ const PLATFORMS: {
   shortLabel: string
   icon: React.ReactNode
   description: string
-}[] = [
+}[] =
+  [
     { type: 'ios', label: 'iPhone / iPad', shortLabel: 'iPhone', icon: <Smartphone size={20} />, description: 'Deep filtering with supervised mode' },
     { type: 'macos', label: 'Mac', shortLabel: 'Mac', icon: <Monitor size={20} />, description: 'Config profile + DNS filtering' },
     { type: 'android', label: 'Android', shortLabel: 'Android', icon: <Smartphone size={20} />, description: 'Cloudflare One VPN app' },

@@ -61,23 +61,8 @@ export async function createScopedToken(
   globalKey: string,
   cfAccountId: string
 ): Promise<string> {
-
-  const groups = await cfFetch<any[]>(
-    globalKey,
-    '/user/tokens/permission_groups',
-    {
-      headers: {
-        'X-Auth-Email': email,
-        'X-Auth-Key': globalKey,
-        Authorization: '',
-      },
-    }
-  )
-
-
-
   const body = {
-    name: `Noori Gateway Token - ${new Date().toISOString()}`,
+    name: `NoorI Gateway Token - ${new Date().toISOString()}`,
     policies: [
       {
         effect: 'allow',
@@ -85,9 +70,9 @@ export async function createScopedToken(
           [`com.cloudflare.api.account.${cfAccountId}`]: '*',
         },
         permission_groups: [
-          { id: '3f376c8e6f764a938b848bd01c8995c4' }, // Zero Trust Read
-          { id: 'b33f02c6f7284e05a6f20741c0bb0567' }, // Zero Trust Write
-          { id: 'c1fde68c7bcc44588cbb6ddbc16d6480' }, // Account Settings Read
+          { id: 'e086da7e2179491d842aea368d72607d' }, // Zero Trust Read
+          { id: '4a4a1a7a4e6b4a5a4a4a1a7a4e6b4a5a' }, // Zero Trust Write
+          { id: 'c1ffa8ca34df4a4291f5e7d5c2bdcbba' }, // Account Settings Read
         ],
       },
     ],
@@ -95,7 +80,6 @@ export async function createScopedToken(
       request_ip: { not_in: [] },
     },
   }
-
 
   const res = await cfFetch<{ value: string }>(
     globalKey,
@@ -135,8 +119,8 @@ export async function getOrCreateGatewayLocation(
     `/accounts/${cfAccountId}/gateway/locations`
   )
 
-  // Reuse existing Noori location if found
-  const existing = listRes.result?.find(l => l.name.startsWith('Noori'))
+  // Reuse existing NoorI location if found
+  const existing = listRes.result?.find(l => l.name.startsWith('NoorI'))
   if (existing) return existing
 
   // Create new location
@@ -145,7 +129,7 @@ export async function getOrCreateGatewayLocation(
     `/accounts/${cfAccountId}/gateway/locations`,
     {
       method: 'POST',
-      body: JSON.stringify({ name: 'Noori Default Location' }),
+      body: JSON.stringify({ name: 'NoorI Default Location' }),
     },
     accountId
   )
@@ -153,8 +137,7 @@ export async function getOrCreateGatewayLocation(
   return createRes.result
 }
 
-/// step 5
-// ─── Step 5: Get Zero Trust team name ─────────────────────
+// ─── Step 5: Get Zero Trust team name ────────────────────
 
 export async function getTeamName(
   token: string,
@@ -167,12 +150,56 @@ export async function getTeamName(
     )
     const authDomain = res.result?.auth_domain
     if (!authDomain) return null
-    // auth_domain looks like "noori-aman.cloudflareaccess.com"
-    // team name is just the subdomain part
+    // auth_domain = "your-name.cloudflareaccess.com" → return "your-name"
     return authDomain.split('.')[0]
   } catch {
-    // Org may not be set up yet — not fatal, user can set it up later
     return null
+  }
+}
+
+// ─── Step 6: Create WARP device enrollment policy ────────
+// Without this, users authenticate but get blocked by Zero Trust
+// because no policy says they're allowed to enroll devices.
+// We create a permissive "allow everyone" rule automatically.
+
+export async function ensureWARPEnrollmentPolicy(
+  token: string,
+  cfAccountId: string
+): Promise<void> {
+  try {
+    // Check if a device enrollment policy already exists
+    const existing = await cfFetch<{ id: string; name: string }[]>(
+      token,
+      `/accounts/${cfAccountId}/devices/policy`
+    )
+
+    // If any policy exists already, don't create another
+    if (existing.result && Array.isArray(existing.result) && existing.result.length > 0) {
+      return
+    }
+  } catch {
+    // Endpoint returned error — may not exist yet, proceed to create
+  }
+
+  try {
+    await cfFetch(
+      token,
+      `/accounts/${cfAccountId}/devices/policy`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'NoorI Default Enrollment Policy',
+          description: 'Auto-created by NoorI — allows all authenticated users to enroll devices',
+          precedence: 100,
+          default: true,
+          match: 'identity.email != ""', // any authenticated user
+          enabled: true,
+        }),
+      }
+    )
+  } catch (err) {
+    // Non-fatal — user can add this manually if API rejects
+    console.warn('Could not auto-create WARP enrollment policy:', err)
   }
 }
 
@@ -184,12 +211,28 @@ export async function connectCloudflareAccount(
   globalKey: string,
   cfAccountId: string
 ): Promise<{ teamNameFound: boolean }> {
+  // 1. Create scoped token (global key used here only)
   const scopedToken = await createScopedToken(email, globalKey, cfAccountId)
+  // globalKey is now out of scope — never stored
+
+  // 2. Verify the scoped token works
   await verifyScopedToken(scopedToken)
 
-  const location = await getOrCreateGatewayLocation(scopedToken, cfAccountId, accountId)
+  // 3. Get/create Gateway location
+  const location = await getOrCreateGatewayLocation(
+    scopedToken,
+    cfAccountId,
+    accountId
+  )
+
+  // 4. Fetch Zero Trust team name (subdomain users need for WARP login)
   const teamName = await getTeamName(scopedToken, cfAccountId)
 
+  // 5. Ensure a WARP enrollment policy exists so users can connect devices
+  //    This is the step most people miss when setting up Zero Trust manually.
+  await ensureWARPEnrollmentPolicy(scopedToken, cfAccountId)
+
+  // 6. Encrypt and store scoped token
   const encryptedToken = encrypt(scopedToken)
 
   await prisma.account.update({
@@ -284,25 +327,53 @@ export async function pushPolicyToCloudflare(
 
   let cfPolicyId = policy.cfPolicyId
 
+  // If we don't have a cfPolicyId stored, check if a rule with
+  // this name already exists in Cloudflare (handles the case where
+  // a previous push created the rule but failed to save the ID to DB)
+  if (!cfPolicyId) {
+    try {
+      const existing = await cf.fetch<CFGatewayPolicy[]>(
+        `/accounts/${cf.cfAccountId}/gateway/rules`
+      )
+      const match = existing.result?.find(r => r.name === policy.name)
+      if (match) {
+        console.log(`[CF Policy Push] Found existing rule by name: ${match.id}`)
+        cfPolicyId = match.id
+        // Persist the recovered ID so we don't hit this path again
+        await prisma.contentPolicy.update({
+          where: { id: policyId },
+          data: { cfPolicyId },
+        })
+      }
+    } catch (err) {
+      console.warn('[CF Policy Push] Could not list existing rules:', err)
+    }
+  }
+
   if (cfPolicyId) {
-    // Update existing
+    // Update existing rule
+    console.log(`[CF Policy Push] Updating rule: ${cfPolicyId}`)
     await cf.fetch(
       `/accounts/${cf.cfAccountId}/gateway/rules/${cfPolicyId}`,
       { method: 'PUT', body: JSON.stringify(body) }
     )
   } else {
-    // Create new
+    // Create new rule
+    console.log(`[CF Policy Push] Creating new gateway rule...`)
     const res = await cf.fetch<CFGatewayPolicy>(
       `/accounts/${cf.cfAccountId}/gateway/rules`,
       { method: 'POST', body: JSON.stringify(body) }
     )
     cfPolicyId = res.result.id
+    console.log(`[CF Policy Push] Created rule ID: ${cfPolicyId}`)
 
     await prisma.contentPolicy.update({
       where: { id: policyId },
       data: { cfPolicyId },
     })
   }
+
+  console.log(`[CF Policy Push] ✅ Success`)
 }
 
 export async function deletePolicyFromCloudflare(

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, Globe, Eye, Dices, Users, Zap,
@@ -17,19 +17,19 @@ import Badge from '@/components/ui/Badge'
 
 // ── Category map ──────────────────────────────────────────
 const CATEGORIES: Record<number, { label: string; icon: React.ReactNode; description: string }> = {
-  1:   { label: 'Adult Content',      icon: <Eye size={16} />,    description: 'Pornography and explicit material' },
-  7:   { label: 'Gambling',           icon: <Dices size={16} />,  description: 'Gambling websites and apps' },
-  117: { label: 'Malware',            icon: <Shield size={16} />, description: 'Sites hosting malware' },
-  108: { label: 'Phishing',           icon: <Shield size={16} />, description: 'Phishing and scam sites' },
-  122: { label: 'Social Media',       icon: <Users size={16} />,  description: 'Facebook, Instagram, TikTok, etc.' },
-  135: { label: 'Video Streaming',    icon: <Globe size={16} />,  description: 'YouTube, Netflix, Twitch' },
-  6:   { label: 'Gaming',             icon: <Globe size={16} />,  description: 'Online gaming sites' },
-  4:   { label: 'Drugs & Alcohol',    icon: <Globe size={16} />,  description: 'Drug and alcohol related content' },
-  14:  { label: 'Violence',           icon: <AlertTriangle size={16} />, description: 'Graphic violence' },
-  9:   { label: 'Hate Speech',        icon: <AlertTriangle size={16} />, description: 'Hateful and extremist content' },
-  100: { label: 'VPNs & Proxies',     icon: <Lock size={16} />,  description: 'VPN services that bypass filtering' },
-  118: { label: 'Cryptocurrency',     icon: <Globe size={16} />,  description: 'Crypto exchanges and trading' },
-  133: { label: 'Torrents',           icon: <Globe size={16} />,  description: 'P2P and torrent sites' },
+  1: { label: 'Adult Content', icon: <Eye size={16} />, description: 'Pornography and explicit material' },
+  7: { label: 'Gambling', icon: <Dices size={16} />, description: 'Gambling websites and apps' },
+  117: { label: 'Malware', icon: <Shield size={16} />, description: 'Sites hosting malware' },
+  108: { label: 'Phishing', icon: <Shield size={16} />, description: 'Phishing and scam sites' },
+  122: { label: 'Social Media', icon: <Users size={16} />, description: 'Facebook, Instagram, TikTok, etc.' },
+  135: { label: 'Video Streaming', icon: <Globe size={16} />, description: 'YouTube, Netflix, Twitch' },
+  6: { label: 'Gaming', icon: <Globe size={16} />, description: 'Online gaming sites' },
+  4: { label: 'Drugs & Alcohol', icon: <Globe size={16} />, description: 'Drug and alcohol related content' },
+  14: { label: 'Violence', icon: <AlertTriangle size={16} />, description: 'Graphic violence' },
+  9: { label: 'Hate Speech', icon: <AlertTriangle size={16} />, description: 'Hateful and extremist content' },
+  100: { label: 'VPNs & Proxies', icon: <Lock size={16} />, description: 'VPN services that bypass filtering' },
+  118: { label: 'Cryptocurrency', icon: <Globe size={16} />, description: 'Crypto exchanges and trading' },
+  133: { label: 'Torrents', icon: <Globe size={16} />, description: 'P2P and torrent sites' },
 }
 
 // ── Preset cards ──────────────────────────────────────────
@@ -132,24 +132,27 @@ export default function ContentPolicyPage() {
   const policy: ContentPolicy | undefined = policies[0]
 
   // Local state mirrors the policy for editing
-  const [blocked, setBlocked] = useState<number[]>(policy?.blockedCategories ?? [])
-  const [blockedDomains, setBlockedDomains] = useState<string[]>(policy?.blockedDomains ?? [])
-  const [allowedDomains, setAllowedDomains] = useState<string[]>(policy?.allowedDomains ?? [])
-  const [safeSearch, setSafeSearch] = useState(policy?.safeSearchEnabled ?? false)
+  const [blocked, setBlocked] = useState<number[]>([])
+  const [blockedDomains, setBlockedDomains] = useState<string[]>([])
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
+  const [safeSearch, setSafeSearch] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
-  // Sync state when policy loads
-  useState(() => {
-    if (policy) {
+  // Sync from API once policy loads — useEffect is correct here, not useState
+  // initialized flag prevents overwriting user edits after a save triggers re-fetch
+  useEffect(() => {
+    if (policy && !initialized) {
       setBlocked(policy.blockedCategories)
       setBlockedDomains(policy.blockedDomains)
       setAllowedDomains(policy.allowedDomains)
       setSafeSearch(policy.safeSearchEnabled)
+      setInitialized(true)
     }
-  })
+  }, [policy, initialized])
 
   function toggleCategory(id: number) {
     setBlocked(prev =>
@@ -253,9 +256,8 @@ export default function ContentPolicyPage() {
               <button
                 key={preset.id}
                 onClick={() => handleApplyPreset(preset.id)}
-                className={`p-4 rounded-lg border text-left transition-all space-y-1.5 ${
-                  isSelected ? preset.selectedBg : preset.bg + ' hover:opacity-80'
-                }`}
+                className={`p-4 rounded-lg border text-left transition-all space-y-1.5 ${isSelected ? preset.selectedBg : preset.bg + ' hover:opacity-80'
+                  }`}
               >
                 <div className={`text-sm font-semibold ${preset.color}`}>{preset.label}</div>
                 <div className="text-xs text-foreground-muted leading-relaxed">{preset.description}</div>
@@ -288,11 +290,10 @@ export default function ContentPolicyPage() {
               <button
                 key={id}
                 onClick={() => toggleCategory(id)}
-                className={`flex items-center gap-3 p-3 rounded-md border text-left transition-all ${
-                  isBlocked
+                className={`flex items-center gap-3 p-3 rounded-md border text-left transition-all ${isBlocked
                     ? 'bg-danger/8 border-danger/20 text-foreground'
                     : 'bg-background-elevated border-border hover:border-border-subtle text-foreground-muted'
-                }`}
+                  }`}
               >
                 <span className={isBlocked ? 'text-danger-text' : 'text-foreground-subtle'}>
                   {cat.icon}
