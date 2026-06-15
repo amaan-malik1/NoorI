@@ -18,16 +18,16 @@ export default function Toggle({
   size = 'md',
 }: ToggleProps) {
   const trackSize = size === 'sm'
-    ? 'w-8 h-4'
-    : 'w-10 h-5'
+    ? 'w-9 h-5'
+    : 'w-12 h-7'
 
   const thumbSize = size === 'sm'
-    ? 'w-3 h-3 translate-x-0.5'
-    : 'w-3.5 h-3.5 translate-x-0.5'
+    ? 'w-3.5 h-3.5'
+    : 'w-5 h-5'
 
   const thumbOn = size === 'sm'
     ? 'translate-x-4'
-    : 'translate-x-5'
+    : 'translate-x-6'
 
   return (
     <div
@@ -52,9 +52,9 @@ export default function Toggle({
       >
         <span
           className={cn(
-            'absolute top-1/2 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-200',
+            'absolute top-1 left-1 rounded-full bg-white shadow-sm transition-transform duration-200',
             thumbSize,
-            checked ? thumbOn : 'translate-x-0.5'
+            checked ? thumbOn : 'translate-x-0'
           )}
         />
       </button>

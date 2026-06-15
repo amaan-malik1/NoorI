@@ -291,8 +291,8 @@ export default function ContentPolicyPage() {
                 key={id}
                 onClick={() => toggleCategory(id)}
                 className={`flex items-center gap-3 p-3 rounded-md border text-left transition-all ${isBlocked
-                    ? 'bg-danger/8 border-danger/20 text-foreground'
-                    : 'bg-background-elevated border-border hover:border-border-subtle text-foreground-muted'
+                  ? 'bg-danger/8 border-danger/20 text-foreground'
+                  : 'bg-background-elevated border-border hover:border-border-subtle text-foreground-muted'
                   }`}
               >
                 <span className={isBlocked ? 'text-danger-text' : 'text-foreground-subtle'}>
