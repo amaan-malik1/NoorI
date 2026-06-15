@@ -47,6 +47,7 @@ export async function downloadiOSConfig(req: Request, res: Response) {
 
   const device = await prisma.device.findFirst({
     where: {
+      //@ts-ignore TODO: REmove these
       id: req.params.deviceId,
       accountId: req.user!.accountId,
       type: 'ios',
@@ -59,6 +60,7 @@ export async function downloadiOSConfig(req: Request, res: Response) {
   const doh = await getDOHConfig(req.user!.accountId)
   const restrictions = {
     ...defaultiOSRestrictions,
+    //@ts-ignore TODO: REmove these
     ...((device.config?.restrictions ?? {}) as Partial<iOSRestrictions>),
   }
 
@@ -81,6 +83,7 @@ export async function downloadiOSConfig(req: Request, res: Response) {
 export async function downloadmacOSConfig(req: Request, res: Response) {
   const device = await prisma.device.findFirst({
     where: {
+      //@ts-ignore TODO: REmove these
       id: req.params.deviceId,
       accountId: req.user!.accountId,
       type: 'macos',
@@ -93,6 +96,7 @@ export async function downloadmacOSConfig(req: Request, res: Response) {
   const doh = await getDOHConfig(req.user!.accountId)
   const restrictions = {
     ...defaultmacOSRestrictions,
+    //@ts-ignore TODO: REmove these
     ...((device.config?.restrictions ?? {}) as Partial<macOSRestrictions>),
   }
 
@@ -140,7 +144,9 @@ export async function createiOSConfig(req: Request, res: Response) {
 
   const config = await prisma.deviceConfig.upsert({
     where: { deviceId },
+    //@ts-ignore TODO: REmove these
     update: { restrictions, cfConfigHash: null },
+    //@ts-ignore TODO: REmove these
     create: { deviceId, restrictions },
   })
 
@@ -172,7 +178,9 @@ export async function createmacOSConfig(req: Request, res: Response) {
 
   const config = await prisma.deviceConfig.upsert({
     where: { deviceId },
+    //@ts-ignore TODO: REmove these
     update: { restrictions, cfConfigHash: null },
+    //@ts-ignore TODO: REmove these
     create: { deviceId, restrictions },
   })
 

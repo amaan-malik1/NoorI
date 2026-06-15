@@ -1,10 +1,9 @@
-import { Worker, Queue, QueueScheduler } from 'bullmq'
+import { Worker, Queue } from 'bullmq'
 import { redis } from '../config/redis.js'
 import { prisma } from '../config/database.js'
 import { syncLogsForAccount } from '../services/logSync.service.js'
 
-// ─── Queue ────────────────────────────────────────────────
-
+// Queue 
 export const logSyncQueue = new Queue('log-sync', {
   connection: redis,
   defaultJobOptions: {
@@ -15,8 +14,7 @@ export const logSyncQueue = new Queue('log-sync', {
   },
 })
 
-// ─── Schedule jobs for all connected accounts ─────────────
-
+//  Schedule jobs for all connected accounts 
 export async function scheduleAllAccountSyncs() {
   const accounts = await prisma.account.findMany({
     where: { cfConnected: true },
@@ -44,8 +42,7 @@ export async function scheduleAllAccountSyncs() {
   console.log(`📋  Scheduled log sync for ${accounts.length} accounts`)
 }
 
-// ─── Schedule repeating jobs ──────────────────────────────
-
+// Schedule repeating jobs 
 export async function startLogSyncScheduler() {
   // Pro accounts: every 5 minutes
   await logSyncQueue.add(
@@ -72,8 +69,7 @@ export async function startLogSyncScheduler() {
   console.log('⏰  Log sync scheduler started')
 }
 
-// ─── Worker ───────────────────────────────────────────────
-
+// Worker 
 export const logSyncWorker = new Worker(
   'log-sync',
   async (job) => {
