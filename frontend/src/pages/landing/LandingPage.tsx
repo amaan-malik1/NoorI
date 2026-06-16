@@ -350,7 +350,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5"
             >
               <Zap size={12} className="text-amber-500" />
-              <span className="text-xs font-medium text-amber-500">Powered by Cloudflare Zero Trust</span>
+              <span className="text-xs font-medium text-amber-500">Powered by SolStore</span>
             </motion.div>
 
             {/* Headline */}
@@ -358,9 +358,9 @@ export default function LandingPage() {
               ref={headlineRef}
               className="font-sora font-bold text-5xl sm:text-6xl text-foreground leading-tight opacity-0"
             >
-              Content filtering{' '}
-              <UnderlineHighlight>without</UnderlineHighlight>
-              {' '}the complexity.
+              Create a safer{' '}
+              <UnderlineHighlight>digital life</UnderlineHighlight>
+              {' '}for your family.
             </h1>
 
             {/* Sub */}
@@ -368,8 +368,9 @@ export default function LandingPage() {
               ref={subRef}
               className="text-lg text-foreground-muted leading-relaxed max-w-md opacity-0"
             >
-              Set up DNS-level content filtering across all your devices in under 5 minutes.
-              No technical knowledge needed.
+              Bring light to every device by blocking adult, explicit content,
+              gambling, and harmful websites. Protect your children and build healthier
+              digital habits in under 5 minutes.
             </p>
 
             {/* CTA */}
