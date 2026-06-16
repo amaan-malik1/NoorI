@@ -6,9 +6,10 @@ import {
   Shield, Zap, Globe, Lock, Smartphone, Monitor,
   CheckCircle2, ArrowRight, Star, ChevronRight,
   Eye, Users, BarChart2
-} from 'lucide-react'
+} from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
-// ── Animated underline SVG ────────────────────────────────
+// Animated underline SVG 
 
 function UnderlineHighlight({ children }: { children: React.ReactNode }) {
   return (
@@ -36,7 +37,7 @@ function UnderlineHighlight({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Aceternity-style grid background ──────────────────────
+// Aceternity-style grid background 
 
 function GridBackground() {
   return (
@@ -68,7 +69,7 @@ function GridBackground() {
   )
 }
 
-// ── Floating device mockup ────────────────────────────────
+//  Floating device mockup 
 
 function DeviceMockup() {
   return (
@@ -86,10 +87,10 @@ function DeviceMockup() {
 
       {/* Orbiting device chips */}
       {[
-        { icon: <Smartphone size={14} />, label: 'iPhone', angle: 0,   delay: 0 },
-        { icon: <Monitor size={14} />,    label: 'Mac',    angle: 90,  delay: 0.3 },
-        { icon: <Smartphone size={14} />, label: 'Android',angle: 180, delay: 0.6 },
-        { icon: <Monitor size={14} />,    label: 'Windows',angle: 270, delay: 0.9 },
+        { icon: <Smartphone size={14} />, label: 'iPhone', angle: 0, delay: 0 },
+        { icon: <Monitor size={14} />, label: 'Mac', angle: 90, delay: 0.3 },
+        { icon: <Smartphone size={14} />, label: 'Android', angle: 180, delay: 0.6 },
+        { icon: <Monitor size={14} />, label: 'Windows', angle: 270, delay: 0.9 },
       ].map(({ icon, label, angle, delay }) => {
         const rad = (angle * Math.PI) / 180
         const r = 108
@@ -140,7 +141,7 @@ function DeviceMockup() {
   )
 }
 
-// ── Feature card ──────────────────────────────────────────
+// Feature card 
 
 function FeatureCard({
   icon,
@@ -175,7 +176,7 @@ function FeatureCard({
   )
 }
 
-// ── Comparison row ────────────────────────────────────────
+// Comparison row 
 
 function ComparisonRow({
   feature,
@@ -204,7 +205,7 @@ function ComparisonRow({
   )
 }
 
-// ── Pricing card ──────────────────────────────────────────
+// Pricing card 
 
 function PricingCard({
   plan,
@@ -224,11 +225,10 @@ function PricingCard({
   highlighted?: boolean
 }) {
   return (
-    <div className={`relative p-6 rounded-xl border space-y-6 ${
-      highlighted
-        ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
-        : 'bg-background-surface border-border'
-    }`}>
+    <div className={`relative p-6 rounded-xl border space-y-6 ${highlighted
+      ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
+      : 'bg-background-surface border-border'
+      }`}>
       {highlighted && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-amber-500 text-background text-xs font-semibold px-3 py-1 rounded-full">
@@ -259,11 +259,10 @@ function PricingCard({
       </ul>
 
       <Link to="/register">
-        <button className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
-          highlighted
-            ? 'bg-amber-500 hover:bg-amber-400 text-background'
-            : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
-        }`}>
+        <button className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${highlighted
+          ? 'bg-amber-500 hover:bg-amber-400 text-background'
+          : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
+          }`}>
           {cta}
         </button>
       </Link>
@@ -271,8 +270,7 @@ function PricingCard({
   )
 }
 
-// ── Main landing page ─────────────────────────────────────
-
+// Main landing page 
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null)
   const headlineRef = useRef<HTMLHeadingElement>(null)
@@ -307,19 +305,16 @@ export default function LandingPage() {
   }, [])
 
   const featuresRef = useRef(null)
-  const featuresInView = useInView(featuresRef, { once: true })
+  const featuresInView = useInView(featuresRef, { once: true });
+
+  const year = new Date().getFullYear();
 
   return (
     <div className="min-h-screen bg-background text-foreground font-dm">
-      {/* ── Navbar ─────────────────────────────────────────── */}
+      {/* ── Navbar ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 backdrop-blur-md bg-background/80">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={14} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-foreground">Noori</span>
-          </div>
+          <Logo />
 
           <div className="hidden md:flex items-center gap-7 text-sm text-foreground-muted">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -340,7 +335,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero ───────────────────────────────────────────── */}
+      {/* Hero */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-20">
         <GridBackground />
 
@@ -433,7 +428,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ───────────────────────────────────────── */}
       <section id="features" ref={featuresRef} className="py-24 px-6">
         <div className="max-w-6xl mx-auto space-y-14">
           <motion.div
@@ -500,7 +494,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ───────────────────────────────────── */}
+      {/* How it works  */}
       <section className="py-24 px-6 bg-background-surface border-y border-border">
         <div className="max-w-4xl mx-auto space-y-14">
           <div className="text-center space-y-3">
@@ -558,11 +552,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Comparison ─────────────────────────────────────── */}
+      {/*  Comparison  */}
       <section id="compare" className="py-24 px-6">
         <div className="max-w-3xl mx-auto space-y-10">
           <div className="text-center space-y-3">
-            <h2 className="font-sora font-bold text-4xl text-foreground">Noori vs TechLockdown</h2>
+            <h2 className="font-sora font-bold text-4xl text-foreground">Noori vs Others</h2>
             <p className="text-foreground-muted text-base">
               Same Cloudflare power — much simpler experience
             </p>
@@ -577,29 +571,29 @@ export default function LandingPage() {
             {/* Header */}
             <div className="grid grid-cols-3 gap-4 px-6 py-4 border-b border-border bg-background-elevated">
               <div className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Feature</div>
-              <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">TechLockdown</div>
+              <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">Others</div>
               <div className="text-center text-xs font-semibold text-amber-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
                 <Shield size={11} /> Noori
               </div>
             </div>
 
             <div className="px-6 divide-y divide-border">
-              <ComparisonRow feature="Simple setup (non-technical)"   them={false}              us={true} />
-              <ComparisonRow feature="Smart protection presets"       them={false}              us={true} />
-              <ComparisonRow feature="Protection score dashboard"     them={false}              us={true} />
-              <ComparisonRow feature="UPI / Razorpay payments"        them={false}              us={true} />
-              <ComparisonRow feature="Cloudflare Gateway integration" them={true}               us={true} />
-              <ComparisonRow feature="iOS Config Generator"           them={true}               us={true} />
-              <ComparisonRow feature="Activity logs"                  them={true}               us={true} />
-              <ComparisonRow feature="Profile PIN locking"            them={true}               us={true} />
-              <ComparisonRow feature="Android managed mode"           them="Guide only"         us="Guide + DNS setup" />
-              <ComparisonRow feature="Pricing (India)"                them="$9 USD only"        us="₹499 via UPI" />
+              <ComparisonRow feature="Simple setup (non-technical)" them={false} us={true} />
+              <ComparisonRow feature="Smart protection presets" them={false} us={true} />
+              <ComparisonRow feature="Protection score dashboard" them={false} us={true} />
+              <ComparisonRow feature="UPI / Razorpay payments" them={false} us={true} />
+              <ComparisonRow feature="Cloudflare Gateway integration" them={true} us={true} />
+              <ComparisonRow feature="iOS Config Generator" them={true} us={true} />
+              <ComparisonRow feature="Activity logs" them={true} us={true} />
+              <ComparisonRow feature="Profile PIN locking" them={true} us={true} />
+              <ComparisonRow feature="Android managed mode" them="Guide only" us="Guide + DNS setup" />
+              <ComparisonRow feature="Pricing (India)" them="$9 USD only" us="₹499 via UPI" />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Pricing ────────────────────────────────────────── */}
+      {/* ── Pricing ─ */}
       <section id="pricing" className="py-24 px-6 bg-background-surface border-t border-border">
         <div className="max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-3">
@@ -647,7 +641,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Final CTA ──────────────────────────────────────── */}
+      {/* ── Final CTA  */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <div className="space-y-4">
@@ -688,14 +682,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────── */}
+      {/* ── Footer ── */}
       <footer className="border-t border-border py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-amber-500 rounded-md flex items-center justify-center">
-              <Shield size={12} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-sm text-foreground">Noori</span>
+            <Logo />
           </div>
           <div className="flex items-center gap-6 text-xs text-foreground-subtle">
             <a href="#" className="hover:text-foreground-muted transition-colors">Privacy Policy</a>
@@ -703,7 +694,7 @@ export default function LandingPage() {
             <Link to="/login" className="hover:text-foreground-muted transition-colors">Sign in</Link>
           </div>
           <div className="text-xs text-foreground-subtle">
-            © 2025 Noori. Built with Cloudflare Zero Trust.
+            © {year}  Noori. Built with Cloudflare Zero Trust.
           </div>
         </div>
       </footer>
