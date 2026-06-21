@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { getErrorMessage } from '@/lib/utils'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
+import Logo from '@/components/ui/Logo'
 
 // ── Schema ────────────────────────────────────────────────
 const schema = z.object({
@@ -125,10 +126,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={18} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-lg text-foreground">Noori</span>
+            <Logo />
           </div>
 
           <div className="space-y-8">
@@ -182,10 +180,7 @@ export default function RegisterPage() {
         >
           {/* Mobile logo */}
           <motion.div variants={item} className="flex items-center gap-3 lg:hidden">
-            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={16} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-foreground">Noori</span>
+            <Logo />
           </motion.div>
 
           <motion.div variants={item} className="space-y-1.5">
@@ -249,9 +244,8 @@ export default function RegisterPage() {
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div
                         key={i}
-                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                          i <= strength ? strengthColors[strength] : 'bg-border'
-                        }`}
+                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= strength ? strengthColors[strength] : 'bg-border'
+                          }`}
                       />
                     ))}
                   </div>

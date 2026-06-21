@@ -8,6 +8,7 @@ import {
   Eye, Users, BarChart2
 } from 'lucide-react'
 import FaqSection from '@/components/faq/FaqSection'
+import Logo from '@/components/ui/Logo'
 
 // ── Animated underline SVG ────────────────────────────────
 
@@ -231,8 +232,8 @@ function PricingCard({
 
   return (
     <div className={`relative p-6 rounded-xl border space-y-6 ${highlighted
-        ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
-        : 'bg-background-surface border-border'
+      ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
+      : 'bg-background-surface border-border'
       }`}>
       {highlighted && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -275,8 +276,8 @@ function PricingCard({
 
       <Link to="/register">
         <button className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${highlighted
-            ? 'bg-amber-500 hover:bg-amber-400 text-background'
-            : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
+          ? 'bg-amber-500 hover:bg-amber-400 text-background'
+          : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
           }`}>
           {cta}
         </button>
@@ -293,8 +294,8 @@ export default function LandingPage() {
   const subRef = useRef<HTMLParagraphElement>(null)
   const [pricingInterval, setPricingInterval] = useState<'monthly' | 'yearly'>('monthly')
   const ctaRef = useRef<HTMLDivElement>(null)
+  const currentYear = new Date().getFullYear();
 
-  // GSAP hero entrance sequence
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
@@ -326,14 +327,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-dm">
-      {/* ── Navbar ─────────────────────────────────────────── */}
+      {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 backdrop-blur-md bg-background/80">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={14} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-foreground">NoorI</span>
+            <Logo />
           </div>
 
           <div className="hidden md:flex items-center gap-7 text-sm text-foreground-muted">
@@ -594,9 +592,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-3 gap-4 px-6 py-4 border-b border-border bg-background-elevated">
               <div className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Feature</div>
               <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">Others</div>
-              <div className="text-center text-xs font-semibold text-amber-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
-                <Shield size={11} /> NoorI
-              </div>
+              <Logo />
             </div>
 
             <div className="px-6 divide-y divide-border">
@@ -626,8 +622,8 @@ export default function LandingPage() {
               <button
                 onClick={() => setPricingInterval('monthly')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${pricingInterval === 'monthly'
-                    ? 'bg-amber-500 text-background'
-                    : 'text-foreground-muted hover:text-foreground'
+                  ? 'bg-amber-500 text-background'
+                  : 'text-foreground-muted hover:text-foreground'
                   }`}
               >
                 Monthly
@@ -635,8 +631,8 @@ export default function LandingPage() {
               <button
                 onClick={() => setPricingInterval('yearly')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${pricingInterval === 'yearly'
-                    ? 'bg-amber-500 text-background'
-                    : 'text-foreground-muted hover:text-foreground'
+                  ? 'bg-amber-500 text-background'
+                  : 'text-foreground-muted hover:text-foreground'
                   }`}
               >
                 Yearly <span className="text-[10px] opacity-80">(save 20%)</span>
@@ -759,10 +755,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-amber-500 rounded-md flex items-center justify-center">
-              <Shield size={12} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-sm text-foreground">NoorI</span>
+            <Logo />
           </div>
           <div className="flex items-center gap-6 text-xs text-foreground-subtle">
             <a href="#" className="hover:text-foreground-muted transition-colors">Privacy Policy</a>
@@ -770,7 +763,7 @@ export default function LandingPage() {
             <Link to="/login" className="hover:text-foreground-muted transition-colors">Sign in</Link>
           </div>
           <div className="text-xs text-foreground-subtle">
-            © 2025 NoorI. Built with Cloudflare Zero Trust.
+            © {currentYear} NoorI. Built with Cloudflare Zero Trust.
           </div>
         </div>
       </footer>

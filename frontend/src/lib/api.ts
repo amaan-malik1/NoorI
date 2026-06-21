@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/auth.store'
 
 const API_URL = import.meta.env.VITE_API_URL as string
-console.log(import.meta.env.VITE_API_URL)
+console.log("API backend: ",import.meta.env.VITE_API_URL)
 
 export const api = axios.create({
   baseURL: API_URL,

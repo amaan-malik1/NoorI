@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import Logo from '../ui/Logo'
 
 // ── Nav items ─────────────────────────────────────────────
 const navItems = [
@@ -32,7 +33,7 @@ export default function DashboardLayout() {
   const isLocked = user?.account?.isLocked ?? false
 
   const handleLogout = async () => {
-    await api.post('/auth/logout').catch(() => {})
+    await api.post('/auth/logout').catch(() => { })
     logout()
     navigate('/login')
   }
@@ -41,7 +42,7 @@ export default function DashboardLayout() {
     if (isLocked) {
       navigate('/dashboard/settings?action=unlock')
     } else {
-      await api.post('/account/lock').catch(() => {})
+      await api.post('/account/lock').catch(() => { })
       window.location.reload()
     }
   }
@@ -51,10 +52,7 @@ export default function DashboardLayout() {
       {/* Logo */}
       <div className="px-5 pt-6 pb-5 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Shield size={16} className="text-background" />
-          </div>
-          <span className="font-sora font-semibold text-foreground">Noori</span>
+          <Logo />
         </div>
       </div>
 
@@ -181,10 +179,7 @@ export default function DashboardLayout() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-amber-500 rounded-md flex items-center justify-center">
-              <Shield size={12} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-sm text-foreground">Noori</span>
+            <Logo />
           </div>
         </div>
 

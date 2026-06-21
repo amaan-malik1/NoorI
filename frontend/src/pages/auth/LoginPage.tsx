@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { getErrorMessage } from '@/lib/utils'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
+import Logo from '@/components/ui/Logo'
 
 // ── Schema ────────────────────────────────────────────────
 const schema = z.object({
@@ -77,10 +78,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={18} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-lg text-foreground">Noori</span>
+            <Logo />
           </div>
 
           {/* Center content */}
@@ -138,10 +136,7 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <motion.div variants={item} className="flex items-center gap-3 lg:hidden">
-            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={16} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-foreground">Noori</span>
+            <Logo />
           </motion.div>
 
           {/* Header */}

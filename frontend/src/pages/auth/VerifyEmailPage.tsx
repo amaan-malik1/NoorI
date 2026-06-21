@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, Shield } from 'lucide-react'
 import { api } from '@/lib/api'
 import Button from '@/components/ui/Button'
+import Logo from '@/components/ui/Logo'
 
 type State = 'loading' | 'success' | 'error'
 
@@ -35,10 +36,7 @@ export default function VerifyEmailPage() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-12">
-        <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-          <Shield size={16} className="text-background" />
-        </div>
-        <span className="font-sora font-semibold text-foreground">Noori</span>
+        <Logo />
       </div>
 
       <motion.div

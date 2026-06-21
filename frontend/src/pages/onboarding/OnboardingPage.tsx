@@ -10,6 +10,7 @@ import { useRunOnboarding, type OnboardingGoal, type ProtectionLevel } from '@/h
 import { getErrorMessage } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import StepIndicator from '@/components/ui/StepIndicator'
+import Logo from '@/components/ui/Logo'
 
 // ── Animation config ──────────────────────────────────────
 
@@ -218,7 +219,7 @@ function ProtectionStep({
                 {level.blocks.map(block => (
                   <li key={block} className="flex items-center gap-2 text-xs text-foreground-muted">
                     <span className={`w-1 h-1 rounded-full flex-shrink-0 ${level.id === 'basic' ? 'bg-info' :
-                        level.id === 'balanced' ? 'bg-amber-500' : 'bg-danger'
+                      level.id === 'balanced' ? 'bg-amber-500' : 'bg-danger'
                       }`} />
                     {block}
                   </li>
@@ -309,8 +310,8 @@ function DoneStep({
             key={step.label}
             onClick={step.action}
             className={`w-full flex items-center gap-3 p-4 rounded-lg border text-left transition-all group ${step.primary
-                ? 'bg-amber-500/8 border-amber-500/30 hover:bg-amber-500/12'
-                : 'bg-background-elevated border-border hover:border-border-subtle'
+              ? 'bg-amber-500/8 border-amber-500/30 hover:bg-amber-500/12'
+              : 'bg-background-elevated border-border hover:border-border-subtle'
               }`}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${step.primary ? 'bg-amber-500/15' : 'bg-background-overlay'
@@ -379,10 +380,7 @@ export default function OnboardingPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center">
-            <Shield size={14} className="text-background" />
-          </div>
-          <span className="font-sora font-semibold text-sm text-foreground">Noori</span>
+          <Logo />
         </div>
 
         {step < 2 && (

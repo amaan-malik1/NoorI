@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { getErrorMessage } from '@/lib/utils'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
+import Logo from '@/components/ui/Logo'
 
 export default function ForgotPasswordPage() {
   const [success, setSuccess] = useState(false)
@@ -26,10 +27,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
       <div className="flex items-center gap-3 mb-12">
-        <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-          <Shield size={16} className="text-background" />
-        </div>
-        <span className="font-sora font-semibold text-foreground">Noori</span>
+        <Logo />
       </div>
 
       <motion.div
