@@ -62,8 +62,8 @@ function PeriodTabs({
   onChange: (p: Period) => void
 }) {
   const tabs: { value: Period; label: string }[] = [
-    { value: 'day',   label: 'Today' },
-    { value: 'week',  label: '7 days' },
+    { value: 'day', label: 'Today' },
+    { value: 'week', label: '7 days' },
     { value: 'month', label: '30 days' },
   ]
 
@@ -123,7 +123,7 @@ export default function ActivityPage() {
     setPage(1)
   }, [])
 
-  const isPro = account?.subscription?.plan === 'pro'
+  const isPro = account?.subscription?.plan === 'pro' || account?.subscription?.plan === 'family'
   const retentionDays = logsData?.meta.retentionDays ?? 7
 
   const container = {
@@ -262,7 +262,7 @@ export default function ActivityPage() {
       {/* ── View toggle ───────────────────────────────────── */}
       <motion.div variants={item} className="flex items-center gap-1 bg-background-elevated rounded-lg p-0.5 border border-border w-fit">
         {[
-          { id: 'logs',  label: 'Traffic Logs' },
+          { id: 'logs', label: 'Traffic Logs' },
           { id: 'stats', label: 'Top Domains' },
         ].map(v => (
           <button
@@ -320,10 +320,10 @@ export default function ActivityPage() {
               value={actionFilter}
               onChange={v => { setActionFilter(v as ActivityAction | 'all'); setPage(1) }}
               options={[
-                { value: 'all',       label: 'All actions' },
-                { value: 'allowed',   label: 'Allowed only' },
-                { value: 'blocked',   label: 'Blocked only' },
-                { value: 'overridden',label: 'Bypassed only' },
+                { value: 'all', label: 'All actions' },
+                { value: 'allowed', label: 'Allowed only' },
+                { value: 'blocked', label: 'Blocked only' },
+                { value: 'overridden', label: 'Bypassed only' },
               ]}
               size="sm"
               className="w-36"

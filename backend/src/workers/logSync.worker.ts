@@ -2,8 +2,10 @@ import { Worker, Queue } from 'bullmq'
 import { redis } from '../config/redis.js'
 import { prisma } from '../config/database.js'
 import { syncLogsForAccount } from '../services/logSync.service.js'
+import { getPlanLimits } from '../config/plans.js'
 
-// Queue 
+// ─── Queue ────────────────────────────────────────────────
+
 export const logSyncQueue = new Queue('log-sync', {
   connection: redis,
   defaultJobOptions: {
@@ -14,7 +16,8 @@ export const logSyncQueue = new Queue('log-sync', {
   },
 })
 
-//  Schedule jobs for all connected accounts 
+// ─── Schedule jobs for all connected accounts ─────────────
+
 export async function scheduleAllAccountSyncs() {
   const accounts = await prisma.account.findMany({
     where: { cfConnected: true },
@@ -25,16 +28,12 @@ export async function scheduleAllAccountSyncs() {
   })
 
   for (const account of accounts) {
-    const isPro = account.subscription?.plan === 'pro'
-
     await logSyncQueue.add(
       'sync',
       { accountId: account.id },
       {
         // Deduplicate by accountId — won't add if job already queued
         jobId: `sync-${account.id}`,
-        // Pro syncs every 5min, free every 15min
-        delay: isPro ? 0 : 0, // delay handled by scheduler repeat
       }
     )
   }
@@ -42,26 +41,34 @@ export async function scheduleAllAccountSyncs() {
   console.log(`📋  Scheduled log sync for ${accounts.length} accounts`)
 }
 
-// Schedule repeating jobs 
+// ─── Schedule repeating jobs ──────────────────────────────
+// Pro and Family both sync every 5 minutes (paid tiers).
+// Free syncs every 30 minutes. Grouped as "fast" vs "slow"
+// rather than one repeat job per plan, since the interval is
+// shared across paid tiers.
+
 export async function startLogSyncScheduler() {
-  // Pro accounts: every 5 minutes
+  const fastIntervalMs = getPlanLimits('pro').logSyncIntervalMinutes * 60 * 1000
+  const slowIntervalMs = getPlanLimits('free').logSyncIntervalMinutes * 60 * 1000
+
+  // Paid accounts (pro + family): fast sync
   await logSyncQueue.add(
-    'schedule-pro',
-    { type: 'pro' },
+    'schedule-fast',
+    { type: 'fast' },
     {
-      jobId: 'scheduler-pro',
-      repeat: { every: 5 * 60 * 1000 },
+      jobId: 'scheduler-fast',
+      repeat: { every: fastIntervalMs },
       removeOnComplete: 1,
     }
   )
 
-  // Free accounts: every 15 minutes
+  // Free accounts: slow sync
   await logSyncQueue.add(
-    'schedule-free',
-    { type: 'free' },
+    'schedule-slow',
+    { type: 'slow' },
     {
-      jobId: 'scheduler-free',
-      repeat: { every: 15 * 60 * 1000 },
+      jobId: 'scheduler-slow',
+      repeat: { every: slowIntervalMs },
       removeOnComplete: 1,
     }
   )
@@ -69,18 +76,20 @@ export async function startLogSyncScheduler() {
   console.log('⏰  Log sync scheduler started')
 }
 
-// Worker 
+// ─── Worker ───────────────────────────────────────────────
+
 export const logSyncWorker = new Worker(
   'log-sync',
   async (job) => {
     const { accountId, type } = job.data
 
-    // Scheduler job — enqueue all accounts of that plan type
-    if (type === 'pro' || type === 'free') {
+    // Scheduler job — enqueue all accounts matching this speed tier
+    if (type === 'fast' || type === 'slow') {
+      const plans = type === 'fast' ? ['pro', 'family'] : ['free']
       const accounts = await prisma.account.findMany({
         where: {
           cfConnected: true,
-          subscription: { plan: type === 'pro' ? 'pro' : 'free' },
+          subscription: { plan: { in: plans as ('free' | 'pro' | 'family')[] } },
         },
         select: { id: true },
       })

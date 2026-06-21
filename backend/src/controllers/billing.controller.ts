@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { env } from '../config/env.js'
+import { PLANS, getGatewayPriceId } from '../config/plans.js'
+import type { PlanId, BillingInterval } from '../config/plans.js'
 import {
   createStripeCheckout,
   createStripePortalSession,
@@ -22,64 +24,106 @@ export async function getBillingStatus(req: Request, res: Response) {
     where: { accountId: req.user!.accountId },
     select: {
       plan: true,
+      billingInterval: true,
       gateway: true,
       currentPeriodEnd: true,
       cancelAtPeriodEnd: true,
     },
   })
 
+  // Check which (plan, interval) combos actually have a configured price ID
+  // for each gateway — frontend uses this to grey out unavailable options
+  // rather than letting the user pick something that will 503 at checkout
+  const envRecord = env as unknown as Record<string, string | undefined>
+  const gatewaysAvailable = {
+    stripe: !!env.STRIPE_SECRET_KEY,
+    razorpay: !!(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET),
+  }
+
+  const priceIdsConfigured = {
+    stripe: {
+      pro: {
+        monthly: !!getGatewayPriceId('stripe', 'pro', 'monthly', envRecord),
+        yearly: !!getGatewayPriceId('stripe', 'pro', 'yearly', envRecord),
+      },
+      family: {
+        monthly: !!getGatewayPriceId('stripe', 'family', 'monthly', envRecord),
+        yearly: !!getGatewayPriceId('stripe', 'family', 'yearly', envRecord),
+      },
+    },
+    razorpay: {
+      pro: {
+        monthly: !!getGatewayPriceId('razorpay', 'pro', 'monthly', envRecord),
+        yearly: !!getGatewayPriceId('razorpay', 'pro', 'yearly', envRecord),
+      },
+      family: {
+        monthly: !!getGatewayPriceId('razorpay', 'family', 'monthly', envRecord),
+        yearly: !!getGatewayPriceId('razorpay', 'family', 'yearly', envRecord),
+      },
+    },
+  }
+
   return sendSuccess(res, {
     plan: sub?.plan ?? 'free',
+    billingInterval: sub?.billingInterval ?? 'monthly',
     gateway: sub?.gateway ?? null,
     currentPeriodEnd: sub?.currentPeriodEnd ?? null,
     cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
-    pricing: {
-      usd: env.PRO_PRICE_USD,
-      inr: env.PRO_PRICE_INR,
-    },
-    gatewaysAvailable: {
-      stripe: !!(env.STRIPE_SECRET_KEY && env.STRIPE_PRO_PRICE_ID),
-      razorpay: !!(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && env.RAZORPAY_PRO_PLAN_ID),
-    },
+    // Full plan catalog — single source of truth for the pricing page,
+    // so the frontend never hardcodes a price or limit
+    plans: PLANS,
+    gatewaysAvailable,
+    priceIdsConfigured,
   })
 }
 
 // ─── POST /api/billing/checkout ───────────────────────────
-// Auto-detect gateway from currency, or user passes preferred gateway
 
 export async function createCheckout(req: Request, res: Response) {
   const schema = z.object({
     gateway: z.enum(['stripe', 'razorpay']),
+    plan: z.enum(['pro', 'family']),
+    interval: z.enum(['monthly', 'yearly']),
     successUrl: z.string().url().optional(),
     cancelUrl: z.string().url().optional(),
     name: z.string().optional(), // needed for Razorpay customer
   })
 
-  const { gateway, successUrl, cancelUrl, name } = schema.parse(req.body)
+  const { gateway, plan, interval, successUrl, cancelUrl, name } = schema.parse(req.body)
 
-  const defaultSuccess = `${env.FRONTEND_URL}/settings/billing?success=1`
-  const defaultCancel = `${env.FRONTEND_URL}/settings/billing?cancelled=1`
+  const defaultSuccess = `${env.FRONTEND_URL}/dashboard/settings?tab=billing&success=1`
+  const defaultCancel = `${env.FRONTEND_URL}/dashboard/settings?tab=billing&cancelled=1`
 
-  // Check not already pro
+  // Block if already on this plan or higher — simple equality check;
+  // upgrading pro→family or downgrading is a separate "change plan" flow,
+  // not handled by this endpoint (intentional — keeps checkout simple for v1)
   const sub = await prisma.subscription.findUnique({
     where: { accountId: req.user!.accountId },
     select: { plan: true },
   })
 
-  if (sub?.plan === 'pro') {
-    return sendError(res, 'Already on Pro plan', { status: 409 })
+  if (sub?.plan === plan) {
+    return sendError(res, `You're already on the ${PLANS[plan].name} plan`, { status: 409 })
   }
 
+  const envRecord = env as unknown as Record<string, string | undefined>
+
   if (gateway === 'stripe') {
-    if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PRO_PRICE_ID) {
+    if (!env.STRIPE_SECRET_KEY) {
       return sendError(res, 'Card payments are not available yet. Please use UPI/Razorpay.', {
         status: 503,
       })
+    }
+    const priceId = getGatewayPriceId('stripe', plan, interval, envRecord)
+    if (!priceId) {
+      return sendError(res, `This plan isn't available via card payment yet.`, { status: 503 })
     }
 
     const url = await createStripeCheckout(
       req.user!.accountId,
       req.user!.email,
+      plan,
+      interval,
       successUrl ?? defaultSuccess,
       cancelUrl ?? defaultCancel
     )
@@ -87,16 +131,20 @@ export async function createCheckout(req: Request, res: Response) {
   }
 
   // Razorpay
-  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET || !env.RAZORPAY_PRO_PLAN_ID) {
+  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
     return sendError(res, 'Payments are not configured yet.', { status: 503 })
   }
+  const planId = getGatewayPriceId('razorpay', plan, interval, envRecord)
+  if (!planId) {
+    return sendError(res, `This plan isn't available via UPI/Razorpay yet.`, { status: 503 })
+  }
 
-
-  // Razorpay
   const result = await createRazorpayCheckout(
     req.user!.accountId,
     req.user!.email,
-    name ?? req.user!.email
+    name ?? req.user!.email,
+    plan,
+    interval
   )
 
   return sendSuccess(res, {
@@ -114,10 +162,17 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
     razorpay_payment_id: z.string(),
     razorpay_subscription_id: z.string(),
     razorpay_signature: z.string(),
+    plan: z.enum(['pro', 'family']),
+    interval: z.enum(['monthly', 'yearly']),
   })
 
-  const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } =
-    schema.parse(req.body)
+  const {
+    razorpay_payment_id,
+    razorpay_subscription_id,
+    razorpay_signature,
+    plan,
+    interval,
+  } = schema.parse(req.body)
 
   const valid = verifyRazorpaySignature(
     razorpay_subscription_id,
@@ -133,13 +188,16 @@ export async function verifyRazorpayPayment(req: Request, res: Response) {
   await prisma.subscription.update({
     where: { accountId: req.user!.accountId },
     data: {
-      plan: 'pro',
+      plan,
+      billingInterval: interval,
       gateway: 'razorpay',
       razorpaySubscriptionId: razorpay_subscription_id,
     },
   })
 
-  return sendSuccess(res, null, { message: 'Payment verified. Pro plan activated!' })
+  return sendSuccess(res, null, {
+    message: `Payment verified. ${PLANS[plan].name} plan activated!`,
+  })
 }
 
 // ─── POST /api/billing/portal ─────────────────────────────
@@ -151,11 +209,11 @@ export async function getBillingPortal(req: Request, res: Response) {
     select: { gateway: true, plan: true },
   })
 
-  if (sub?.plan !== 'pro') {
-    return sendError(res, 'No active Pro subscription', { status: 400 })
+  if (sub?.plan === 'free') {
+    return sendError(res, 'No active paid subscription', { status: 400 })
   }
 
-  if (sub.gateway === 'razorpay') {
+  if (sub?.gateway === 'razorpay') {
     // For Razorpay, we handle cancellation directly via our API
     return sendSuccess(res, {
       gateway: 'razorpay',
@@ -163,7 +221,7 @@ export async function getBillingPortal(req: Request, res: Response) {
     })
   }
 
-  const returnUrl = `${env.FRONTEND_URL}/settings/billing`
+  const returnUrl = `${env.FRONTEND_URL}/dashboard/settings?tab=billing`
   const url = await createStripePortalSession(req.user!.accountId, returnUrl)
 
   return sendSuccess(res, { portalUrl: url, gateway: 'stripe' })
@@ -177,11 +235,11 @@ export async function cancelSubscription(req: Request, res: Response) {
     select: { plan: true, gateway: true },
   })
 
-  if (sub?.plan !== 'pro') {
-    return sendError(res, 'No active Pro subscription to cancel', { status: 400 })
+  if (sub?.plan === 'free') {
+    return sendError(res, 'No active paid subscription to cancel', { status: 400 })
   }
 
-  if (sub.gateway === 'razorpay') {
+  if (sub?.gateway === 'razorpay') {
     await cancelRazorpaySubscription(req.user!.accountId)
     return sendSuccess(res, null, {
       message: 'Subscription will cancel at the end of the current billing period',
@@ -189,7 +247,7 @@ export async function cancelSubscription(req: Request, res: Response) {
   }
 
   // Stripe — redirect to portal for cancellation
-  const returnUrl = `${env.FRONTEND_URL}/settings/billing`
+  const returnUrl = `${env.FRONTEND_URL}/dashboard/settings?tab=billing`
   const url = await createStripePortalSession(req.user!.accountId, returnUrl)
 
   return sendSuccess(res, { portalUrl: url })

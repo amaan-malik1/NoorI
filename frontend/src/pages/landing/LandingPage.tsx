@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import { gsap } from 'gsap'
@@ -6,10 +6,10 @@ import {
   Shield, Zap, Globe, Lock, Smartphone, Monitor,
   CheckCircle2, ArrowRight, Star, ChevronRight,
   Eye, Users, BarChart2
-} from 'lucide-react';
-import Logo from '@/components/ui/Logo';
+} from 'lucide-react'
+import FaqSection from '@/components/faq/FaqSection'
 
-// Animated underline SVG 
+// ── Animated underline SVG ────────────────────────────────
 
 function UnderlineHighlight({ children }: { children: React.ReactNode }) {
   return (
@@ -37,7 +37,7 @@ function UnderlineHighlight({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Aceternity-style grid background 
+// ── Aceternity-style grid background ──────────────────────
 
 function GridBackground() {
   return (
@@ -69,7 +69,7 @@ function GridBackground() {
   )
 }
 
-//  Floating device mockup 
+// ── Floating device mockup ────────────────────────────────
 
 function DeviceMockup() {
   return (
@@ -141,7 +141,7 @@ function DeviceMockup() {
   )
 }
 
-// Feature card 
+// ── Feature card ──────────────────────────────────────────
 
 function FeatureCard({
   icon,
@@ -176,7 +176,7 @@ function FeatureCard({
   )
 }
 
-// Comparison row 
+// ── Comparison row ────────────────────────────────────────
 
 function ComparisonRow({
   feature,
@@ -205,29 +205,34 @@ function ComparisonRow({
   )
 }
 
-// Pricing card 
+// ── Pricing card ──────────────────────────────────────────
 
 function PricingCard({
   plan,
-  price,
-  priceINR,
+  priceMonthly,
+  priceYearly,
+  interval,
   description,
   features,
   cta,
   highlighted = false,
 }: {
   plan: string
-  price: string
-  priceINR: string
+  priceMonthly: number
+  priceYearly: number
+  interval: 'monthly' | 'yearly'
   description: string
   features: string[]
   cta: string
   highlighted?: boolean
 }) {
+  const price = interval === 'yearly' ? priceYearly : priceMonthly
+  const isFree = priceMonthly === 0
+
   return (
     <div className={`relative p-6 rounded-xl border space-y-6 ${highlighted
-      ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
-      : 'bg-background-surface border-border'
+        ? 'bg-amber-500/6 border-amber-500/30 shadow-glow-amber-sm'
+        : 'bg-background-surface border-border'
       }`}>
       {highlighted && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -242,10 +247,20 @@ function PricingCard({
           {plan}
         </div>
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="font-sora font-bold text-3xl text-foreground">{price}</span>
-          <span className="text-xs text-foreground-subtle">/ month</span>
-          <span className="text-xs text-foreground-subtle">· {priceINR} INR</span>
+          <span className="font-sora font-bold text-3xl text-foreground">
+            ${price}
+          </span>
+          {!isFree && (
+            <span className="text-xs text-foreground-subtle">
+              / {interval === 'yearly' ? 'year' : 'month'}
+            </span>
+          )}
         </div>
+        {!isFree && interval === 'yearly' && (
+          <p className="text-[11px] text-success">
+            Save 20% vs monthly (${priceMonthly}/mo)
+          </p>
+        )}
         <p className="text-sm text-foreground-muted">{description}</p>
       </div>
 
@@ -260,8 +275,8 @@ function PricingCard({
 
       <Link to="/register">
         <button className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${highlighted
-          ? 'bg-amber-500 hover:bg-amber-400 text-background'
-          : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
+            ? 'bg-amber-500 hover:bg-amber-400 text-background'
+            : 'bg-background-elevated hover:bg-background-overlay border border-border text-foreground'
           }`}>
           {cta}
         </button>
@@ -270,11 +285,13 @@ function PricingCard({
   )
 }
 
-// Main landing page 
+// ── Main landing page ─────────────────────────────────────
+
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null)
   const headlineRef = useRef<HTMLHeadingElement>(null)
   const subRef = useRef<HTMLParagraphElement>(null)
+  const [pricingInterval, setPricingInterval] = useState<'monthly' | 'yearly'>('monthly')
   const ctaRef = useRef<HTMLDivElement>(null)
 
   // GSAP hero entrance sequence
@@ -305,21 +322,25 @@ export default function LandingPage() {
   }, [])
 
   const featuresRef = useRef(null)
-  const featuresInView = useInView(featuresRef, { once: true });
-
-  const year = new Date().getFullYear();
+  const featuresInView = useInView(featuresRef, { once: true })
 
   return (
     <div className="min-h-screen bg-background text-foreground font-dm">
-      {/* ── Navbar ── */}
+      {/* ── Navbar ─────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 backdrop-blur-md bg-background/80">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <Logo />
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center">
+              <Shield size={14} className="text-background" />
+            </div>
+            <span className="font-sora font-semibold text-foreground">NoorI</span>
+          </div>
 
           <div className="hidden md:flex items-center gap-7 text-sm text-foreground-muted">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#compare" className="hover:text-foreground transition-colors">Compare</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
           </div>
 
           <div className="flex items-center gap-3">
@@ -335,7 +356,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero */}
+      {/* ── Hero ───────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-20">
         <GridBackground />
 
@@ -350,7 +371,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5"
             >
               <Zap size={12} className="text-amber-500" />
-              <span className="text-xs font-medium text-amber-500">Powered by SolStore</span>
+              <span className="text-xs font-medium text-amber-500">Powered by Cloudflare Zero Trust</span>
             </motion.div>
 
             {/* Headline */}
@@ -358,9 +379,9 @@ export default function LandingPage() {
               ref={headlineRef}
               className="font-sora font-bold text-5xl sm:text-6xl text-foreground leading-tight opacity-0"
             >
-              Create a safer{' '}
-              <UnderlineHighlight>digital life</UnderlineHighlight>
-              {' '}for your family.
+              Content filtering{' '}
+              <UnderlineHighlight>without</UnderlineHighlight>
+              {' '}the complexity.
             </h1>
 
             {/* Sub */}
@@ -368,9 +389,8 @@ export default function LandingPage() {
               ref={subRef}
               className="text-lg text-foreground-muted leading-relaxed max-w-md opacity-0"
             >
-              Bring light to every device by blocking adult, explicit content,
-              gambling, and harmful websites. Protect your children and build healthier
-              digital habits in under 5 minutes.
+              Set up DNS-level content filtering across all your devices in under 5 minutes.
+              No technical knowledge needed.
             </p>
 
             {/* CTA */}
@@ -429,6 +449,7 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Features ───────────────────────────────────────── */}
       <section id="features" ref={featuresRef} className="py-24 px-6">
         <div className="max-w-6xl mx-auto space-y-14">
           <motion.div
@@ -495,7 +516,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it works  */}
+      {/* ── How it works ───────────────────────────────────── */}
       <section className="py-24 px-6 bg-background-surface border-y border-border">
         <div className="max-w-4xl mx-auto space-y-14">
           <div className="text-center space-y-3">
@@ -553,11 +574,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/*  Comparison  */}
+      {/* ── Comparison ─────────────────────────────────────── */}
       <section id="compare" className="py-24 px-6">
         <div className="max-w-3xl mx-auto space-y-10">
           <div className="text-center space-y-3">
-            <h2 className="font-sora font-bold text-4xl text-foreground">Noori vs Others</h2>
+            <h2 className="font-sora font-bold text-4xl text-foreground">NoorI vs Others</h2>
             <p className="text-foreground-muted text-base">
               Same Cloudflare power — much simpler experience
             </p>
@@ -574,7 +595,7 @@ export default function LandingPage() {
               <div className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Feature</div>
               <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">Others</div>
               <div className="text-center text-xs font-semibold text-amber-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
-                <Shield size={11} /> Noori
+                <Shield size={11} /> NoorI
               </div>
             </div>
 
@@ -588,61 +609,112 @@ export default function LandingPage() {
               <ComparisonRow feature="Activity logs" them={true} us={true} />
               <ComparisonRow feature="Profile PIN locking" them={true} us={true} />
               <ComparisonRow feature="Android managed mode" them="Guide only" us="Guide + DNS setup" />
-              <ComparisonRow feature="Pricing (India)" them="$9 USD only" us="₹499 via UPI" />
+              <ComparisonRow feature="Starting price" them="$9 USD only" us="$5 USD (Pro), local payment methods" />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Pricing ─ */}
+      {/* ── Pricing ────────────────────────────────────────── */}
       <section id="pricing" className="py-24 px-6 bg-background-surface border-t border-border">
-        <div className="max-w-4xl mx-auto space-y-12">
+        <div className="max-w-5xl mx-auto space-y-12">
           <div className="text-center space-y-3">
             <h2 className="font-sora font-bold text-4xl text-foreground">Simple pricing</h2>
             <p className="text-foreground-muted text-base">Start free. Upgrade when you need more.</p>
+
+            <div className="inline-flex items-center gap-1 p-1 bg-background-elevated border border-border rounded-lg mt-2">
+              <button
+                onClick={() => setPricingInterval('monthly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${pricingInterval === 'monthly'
+                    ? 'bg-amber-500 text-background'
+                    : 'text-foreground-muted hover:text-foreground'
+                  }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setPricingInterval('yearly')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${pricingInterval === 'yearly'
+                    ? 'bg-amber-500 text-background'
+                    : 'text-foreground-muted hover:text-foreground'
+                  }`}
+              >
+                Yearly <span className="text-[10px] opacity-80">(save 20%)</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <PricingCard
               plan="Free"
-              price="$0"
-              priceINR="₹0"
-              description="Everything you need to get started."
+              priceMonthly={0}
+              priceYearly={0}
+              interval={pricingInterval}
+              description="Try NoorI with no commitment."
               features={[
-                'Content policy with presets',
-                'All 4 device types supported',
-                'DNS filtering via Cloudflare',
-                '7-day activity history',
-                '1 content policy',
-                'Profile PIN locking',
+                '1 device',
+                '1 content policy (Basic preset)',
+                '3-day activity history',
+                'CSV export',
+                'Community support',
               ]}
               cta="Get started free"
             />
             <PricingCard
               plan="Pro"
-              price="$9"
-              priceINR="₹499"
-              description="For power users and families who need more."
+              priceMonthly={5}
+              priceYearly={48}
+              interval={pricingInterval}
+              description="Full protection for individuals."
               features={[
-                'Everything in Free',
-                '90-day activity history',
-                'iOS Config Generator (.mobileconfig)',
-                'Multiple content policies',
-                'Priority log sync (5 min)',
-                'Email support',
+                'Up to 10 devices',
+                '3 content policies, all categories',
+                '30-day activity history',
+                'iOS + macOS config generator',
+                'Time-based policy scheduling',
+                'Priority support',
               ]}
               cta="Upgrade to Pro"
               highlighted
             />
+            <PricingCard
+              plan="Family"
+              priceMonthly={9.99}
+              priceYearly={96}
+              interval={pricingInterval}
+              description="Complete control for the whole household."
+              features={[
+                'Up to 20 devices',
+                'Unlimited content policies',
+                '90-day activity history',
+                'iOS + macOS config generator',
+                'Scheduled auto-lock + bypass alerts',
+                'Priority support',
+              ]}
+              cta="Upgrade to Family"
+            />
           </div>
 
           <p className="text-center text-xs text-foreground-subtle">
-            Pay with Stripe (international) or Razorpay (India — UPI, cards, netbanking). Cancel anytime.
+            Pay with Stripe (international cards) or Razorpay (India — UPI, cards, netbanking). Cancel anytime.
           </p>
         </div>
       </section>
 
-      {/* ── Final CTA  */}
+      {/* ── FAQ ────────────────────────────────────────────── */}
+      <section id="faq" className="py-24 px-6">
+        <div className="max-w-2xl mx-auto space-y-10">
+          <div className="text-center space-y-3">
+            <h2 className="font-sora font-bold text-4xl text-foreground">Common questions</h2>
+            <p className="text-foreground-muted">
+              Everything you need to know before getting started.
+            </p>
+          </div>
+          <FaqSection title="" />
+        </div>
+      </section>
+
+      {/* ── Final CTA ──────────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <div className="space-y-4">
@@ -683,11 +755,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
+      {/* ── Footer ─────────────────────────────────────────── */}
       <footer className="border-t border-border py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Logo />
+            <div className="w-6 h-6 bg-amber-500 rounded-md flex items-center justify-center">
+              <Shield size={12} className="text-background" />
+            </div>
+            <span className="font-sora font-semibold text-sm text-foreground">NoorI</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-foreground-subtle">
             <a href="#" className="hover:text-foreground-muted transition-colors">Privacy Policy</a>
@@ -695,7 +770,7 @@ export default function LandingPage() {
             <Link to="/login" className="hover:text-foreground-muted transition-colors">Sign in</Link>
           </div>
           <div className="text-xs text-foreground-subtle">
-            © {year}  Noori. Built with Cloudflare Zero Trust.
+            © 2025 NoorI. Built with Cloudflare Zero Trust.
           </div>
         </div>
       </footer>

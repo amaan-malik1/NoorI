@@ -9,7 +9,7 @@ export interface AuthUser {
     id: string
     isLocked: boolean
     cfConnected: boolean
-    subscription?: { plan: 'free' | 'pro' }
+    subscription?: { plan: 'free' | 'pro' | 'family' }
   }
 }
 

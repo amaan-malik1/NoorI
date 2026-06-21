@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, Globe, Eye, Dices, Users, Zap,
@@ -7,13 +8,14 @@ import {
 } from 'lucide-react'
 import {
   usePolicies, useSavePolicy, useApplyPreset,
-  useDeletePolicy, useCFStatus, type ContentPolicy
+  useDeletePolicy, useCFStatus, type ContentPolicy, type PolicySchedule
 } from '@/hooks/useCloudflare'
 import { useAuth } from '@/hooks/useAuth'
 import { getErrorMessage } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Toggle from '@/components/ui/Toggle'
 import Badge from '@/components/ui/Badge'
+import PolicyScheduleEditor from '@/components/content-policy/PolicyScheduleEditor'
 
 // ── Category map ──────────────────────────────────────────
 const CATEGORIES: Record<number, { label: string; icon: React.ReactNode; description: string }> = {
@@ -121,7 +123,10 @@ function DomainInput({
 // ── Main page ─────────────────────────────────────────────
 export default function ContentPolicyPage() {
   const { user } = useAuth()
-  const isPro = user?.account?.subscription?.plan === 'pro'
+  const navigate = useNavigate()
+  const plan = user?.account?.subscription?.plan ?? 'free'
+  const isPro = plan === 'pro' || plan === 'family'
+  const canSchedule = plan === 'pro' || plan === 'family' // scheduling gated same as Pro+ today
 
   const { data: policies = [], isLoading } = usePolicies()
   const { data: cfStatus } = useCFStatus()
@@ -136,6 +141,7 @@ export default function ContentPolicyPage() {
   const [blockedDomains, setBlockedDomains] = useState<string[]>([])
   const [allowedDomains, setAllowedDomains] = useState<string[]>([])
   const [safeSearch, setSafeSearch] = useState(false)
+  const [schedule, setSchedule] = useState<PolicySchedule | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -150,6 +156,7 @@ export default function ContentPolicyPage() {
       setBlockedDomains(policy.blockedDomains)
       setAllowedDomains(policy.allowedDomains)
       setSafeSearch(policy.safeSearchEnabled)
+      setSchedule(policy.schedule ?? null)
       setInitialized(true)
     }
   }, [policy, initialized])
@@ -179,8 +186,11 @@ export default function ContentPolicyPage() {
         allowedDomains,
         safeSearchEnabled: safeSearch,
         isActive: true,
+        schedule,
       })
       setSaved(true)
+      // Allow re-sync from server on next fetch so preset detection stays accurate
+      setInitialized(false)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -189,8 +199,10 @@ export default function ContentPolicyPage() {
     }
   }
 
-  const activePreset = PRESETS.find(p =>
-    p.categories.length === blocked.length &&
+  // Active preset = all preset categories are currently blocked
+  // Use subset check (not exact match) so extra user-added categories
+  // don't break the "Basic Active" / "Balanced Active" detection
+  const activePreset = PRESETS.slice().reverse().find(p =>
     p.categories.every(c => blocked.includes(c))
   )
 
@@ -219,6 +231,9 @@ export default function ContentPolicyPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {schedule && (
+            <Badge variant="amber" size="sm">Scheduled</Badge>
+          )}
           {cfStatus?.cfConnected ? (
             <Badge variant="success" dot>Synced to Cloudflare</Badge>
           ) : (
@@ -315,6 +330,16 @@ export default function ContentPolicyPage() {
             onChange={v => { setSafeSearch(v); setSaved(false) }}
             label="Force Safe Search"
             description="Enforces Google, Bing, and YouTube safe search mode"
+          />
+        </div>
+
+        {/* Time-based scheduling */}
+        <div className="pt-3 border-t border-border">
+          <PolicyScheduleEditor
+            value={schedule}
+            onChange={v => { setSchedule(v); setSaved(false) }}
+            enabled={canSchedule}
+            onUpgradeClick={() => navigate('/dashboard/settings?tab=billing')}
           />
         </div>
       </div>

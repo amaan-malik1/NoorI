@@ -45,6 +45,15 @@ export default function Modal({
           {/* Panel */}
           <motion.div
             key="modal"
+            drag
+            dragMomentum={false}
+            dragElastic={0.1}
+            dragConstraints={{
+              top: -300,
+              left: -500,
+              right: 500,
+              bottom: 300,
+            }}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}

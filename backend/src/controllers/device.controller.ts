@@ -1,8 +1,10 @@
 import { Request, Response } from 'express'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '../config/database.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { generateiOSConfig, generatemacOSConfig } from '../services/config.service.js'
+import { getPlanLimits } from '../config/plans.js'
 import {
   defaultiOSRestrictions,
   defaultmacOSRestrictions,
@@ -33,10 +35,11 @@ export async function getDevices(req: Request, res: Response) {
 // ─── GET /api/devices/:id ─────────────────────────────────
 
 export async function getDevice(req: Request, res: Response) {
+  const id = req.params.id as string;
+
   const device = await prisma.device.findFirst({
     where: {
-      //@ts-ignore TODO: REmove these
-      id: req.params.id,
+      id,
       accountId: req.user!.accountId,
     },
     include: { config: true },
@@ -56,6 +59,26 @@ export async function createDevice(req: Request, res: Response) {
   })
 
   const { name, type } = schema.parse(req.body)
+
+  // Plan gate — check device count limit
+  const sub = await prisma.subscription.findUnique({
+    where: { accountId: req.user!.accountId },
+    select: { plan: true },
+  })
+  const limits = getPlanLimits(sub?.plan ?? 'free')
+
+  if (limits.maxDevices !== null) {
+    const currentCount = await prisma.device.count({
+      where: { accountId: req.user!.accountId },
+    })
+    if (currentCount >= limits.maxDevices) {
+      return sendError(
+        res,
+        `Your ${limits.name} plan supports up to ${limits.maxDevices} device${limits.maxDevices === 1 ? '' : 's'}. Upgrade to add more.`,
+        { status: 402 }
+      )
+    }
+  }
 
   // Set default restrictions based on device type
   const defaultRestrictions =
@@ -94,19 +117,21 @@ export async function updateDevice(req: Request, res: Response) {
   })
 
   const body = schema.parse(req.body)
+  const id = req.params.id as string;
 
   const device = await prisma.device.findFirst({
     where: {
-      //@ts-ignore TODO: REmove these
-      id: req.params.id, accountId: req.user!.accountId
+      id,
+      accountId: req.user!.accountId
     },
   })
 
   if (!device) return sendError(res, 'Device not found', { status: 404 })
 
   const updated = await prisma.device.update({
-    //@ts-ignore TODO: REmove these
-    where: { id: req.params.id },
+    where: {
+      id,
+    },
     data: body,
   })
 
@@ -116,16 +141,21 @@ export async function updateDevice(req: Request, res: Response) {
 // ─── DELETE /api/devices/:id ──────────────────────────────
 
 export async function deleteDevice(req: Request, res: Response) {
+  const id = req.params.id as string;
+
   const device = await prisma.device.findFirst({
-    //@ts-ignore TODO: REmove these
-    where: { id: req.params.id, accountId: req.user!.accountId },
+    where: {
+      id,
+      accountId: req.user!.accountId
+    },
   })
 
   if (!device) return sendError(res, 'Device not found', { status: 404 })
 
   await prisma.device.delete({
-    //@ts-ignore TODO: REmove these
-    where: { id: req.params.id }
+    where: {
+      id
+    }
   })
 
   return sendSuccess(res, null, { message: 'Device removed' })
@@ -140,10 +170,13 @@ export async function saveDeviceConfig(req: Request, res: Response) {
   })
 
   const { restrictions } = schema.parse(req.body)
+  const id = req.params.id as string;
 
   const device = await prisma.device.findFirst({
-    //@ts-ignore TODO: REmove these
-    where: { id: req.params.id, accountId: req.user!.accountId },
+    where: {
+      id,
+      accountId: req.user!.accountId
+    },
     select: { id: true, type: true },
   })
 
@@ -152,14 +185,12 @@ export async function saveDeviceConfig(req: Request, res: Response) {
   const config = await prisma.deviceConfig.upsert({
     where: { deviceId: device.id },
     update: {
-      //@ts-ignore TODO: REmove these
-      restrictions,
-      cfConfigHash: null, // invalidate cached hash on settings change
+      restrictions: restrictions as Prisma.InputJsonValue,
+      cfConfigHash: null, // invalidate 
     },
     create: {
       deviceId: device.id,
-      //@ts-ignore TODO: REmove these
-      restrictions,
+      restrictions: restrictions as Prisma.InputJsonValue,
     },
   })
 
@@ -170,9 +201,13 @@ export async function saveDeviceConfig(req: Request, res: Response) {
 // Generate and stream the .mobileconfig file
 
 export async function downloadDeviceConfig(req: Request, res: Response) {
+  const id = req.params.id as string;
+
   const device = await prisma.device.findFirst({
-    //@ts-ignore TODO: REmove these
-    where: { id: req.params.id, accountId: req.user!.accountId },
+    where: {
+      id,
+      accountId: req.user!.accountId
+    },
     include: { config: true },
   })
 
@@ -186,19 +221,26 @@ export async function downloadDeviceConfig(req: Request, res: Response) {
     )
   }
 
-  // Plan gate — iOS config is Pro only
-  if (device.type === 'ios') {
-    const sub = await prisma.subscription.findUnique({
-      where: { accountId: req.user!.accountId },
-      select: { plan: true },
-    })
-    if (sub?.plan === 'free') {
-      return sendError(
-        res,
-        'iOS Config Generator requires a Pro subscription',
-        { status: 402 }
-      )
-    }
+  // Plan gate — both iOS and macOS config generators are paid-only now
+  const sub = await prisma.subscription.findUnique({
+    where: { accountId: req.user!.accountId },
+    select: { plan: true },
+  })
+  const limits = getPlanLimits(sub?.plan ?? 'free')
+
+  if (device.type === 'ios' && !limits.iosConfigGenerator) {
+    return sendError(
+      res,
+      'iOS Config Generator requires a Pro or Family subscription',
+      { status: 402 }
+    )
+  }
+  if (device.type === 'macos' && !limits.macosConfigGenerator) {
+    return sendError(
+      res,
+      'macOS Config Generator requires a Pro or Family subscription',
+      { status: 402 }
+    )
   }
 
   // Get DoH URL from account if CF is connected
@@ -215,7 +257,6 @@ export async function downloadDeviceConfig(req: Request, res: Response) {
       }
       : undefined
 
-  //@ts-ignore TODO: REmove these
   const restrictions = (device.config?.restrictions ?? {}) as Record<string, unknown>
 
   let configBuffer: Buffer
@@ -238,7 +279,7 @@ export async function downloadDeviceConfig(req: Request, res: Response) {
     )
   }
 
-  const filename = `Noori-${device.type}-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
+  const filename = `noori-${device.type}-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
 
   res.setHeader('Content-Type', 'application/x-apple-aspen-config')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)

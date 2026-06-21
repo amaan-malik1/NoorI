@@ -9,6 +9,8 @@ import {
   iOSRestrictions,
   macOSRestrictions,
 } from '../types/device.types.js'
+import { getPlanLimits } from '../config/plans.js'
+import { Prisma } from '@prisma/client'
 
 // Helper — get DoH config if CF connected
 async function getDOHConfig(accountId: string) {
@@ -25,30 +27,32 @@ async function getDOHConfig(accountId: string) {
   }
 }
 
-// Helper — plan check for Pro features
-async function isPro(accountId: string): Promise<boolean> {
+// Helper — checks the iOS config generator entitlement for the account's
+// current plan (Pro and Family both have it; Free does not)
+async function canUseIOSConfig(accountId: string): Promise<boolean> {
   const sub = await prisma.subscription.findUnique({
     where: { accountId },
     select: { plan: true },
   })
-  return sub?.plan === 'pro'
+  return getPlanLimits(sub?.plan ?? 'free').iosConfigGenerator
 }
 
 // ─── GET /api/config/ios/:deviceId ────────────────────────
 // Stream iOS .mobileconfig directly (same as device download but via config route)
 
 export async function downloadiOSConfig(req: Request, res: Response) {
-  const pro = await isPro(req.user!.accountId)
-  if (!pro) {
-    return sendError(res, 'iOS Config Generator requires a Pro subscription', {
+  const allowed = await canUseIOSConfig(req.user!.accountId);
+  const deviceId = req.params.deviceId as string;
+
+  if (!allowed) {
+    return sendError(res, 'iOS Config Generator requires a Pro or Family subscription', {
       status: 402,
     })
   }
 
   const device = await prisma.device.findFirst({
     where: {
-      //@ts-ignore TODO: REmove these
-      id: req.params.deviceId,
+      id: deviceId,
       accountId: req.user!.accountId,
       type: 'ios',
     },
@@ -60,7 +64,6 @@ export async function downloadiOSConfig(req: Request, res: Response) {
   const doh = await getDOHConfig(req.user!.accountId)
   const restrictions = {
     ...defaultiOSRestrictions,
-    //@ts-ignore TODO: REmove these
     ...((device.config?.restrictions ?? {}) as Partial<iOSRestrictions>),
   }
 
@@ -71,7 +74,7 @@ export async function downloadiOSConfig(req: Request, res: Response) {
     doh
   )
 
-  const filename = `Noori-ios-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
+  const filename = `noori-ios-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
   res.setHeader('Content-Type', 'application/x-apple-aspen-config')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.setHeader('Content-Length', buffer.length)
@@ -81,10 +84,11 @@ export async function downloadiOSConfig(req: Request, res: Response) {
 // ─── GET /api/config/macos/:deviceId ─────────────────────
 
 export async function downloadmacOSConfig(req: Request, res: Response) {
+  const deviceId = req.params.deviceId as string;
+
   const device = await prisma.device.findFirst({
     where: {
-      //@ts-ignore TODO: REmove these
-      id: req.params.deviceId,
+      id: deviceId,
       accountId: req.user!.accountId,
       type: 'macos',
     },
@@ -96,7 +100,6 @@ export async function downloadmacOSConfig(req: Request, res: Response) {
   const doh = await getDOHConfig(req.user!.accountId)
   const restrictions = {
     ...defaultmacOSRestrictions,
-    //@ts-ignore TODO: REmove these
     ...((device.config?.restrictions ?? {}) as Partial<macOSRestrictions>),
   }
 
@@ -107,7 +110,7 @@ export async function downloadmacOSConfig(req: Request, res: Response) {
     doh
   )
 
-  const filename = `Noori-macos-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
+  const filename = `noori-macos-${device.name.replace(/\s+/g, '-').toLowerCase()}.mobileconfig`
   res.setHeader('Content-Type', 'application/x-apple-aspen-config')
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
   res.setHeader('Content-Length', buffer.length)
@@ -118,9 +121,9 @@ export async function downloadmacOSConfig(req: Request, res: Response) {
 // Create a new iOS config preset (restrictions only, no device attached)
 
 export async function createiOSConfig(req: Request, res: Response) {
-  const pro = await isPro(req.user!.accountId)
-  if (!pro) {
-    return sendError(res, 'iOS Config Generator requires a Pro subscription', {
+  const allowed = await canUseIOSConfig(req.user!.accountId)
+  if (!allowed) {
+    return sendError(res, 'iOS Config Generator requires a Pro or Family subscription', {
       status: 402,
     })
   }
@@ -144,10 +147,14 @@ export async function createiOSConfig(req: Request, res: Response) {
 
   const config = await prisma.deviceConfig.upsert({
     where: { deviceId },
-    //@ts-ignore TODO: REmove these
-    update: { restrictions, cfConfigHash: null },
-    //@ts-ignore TODO: REmove these
-    create: { deviceId, restrictions },
+    update: {
+      restrictions: restrictions as Prisma.InputJsonValue,
+      cfConfigHash: null
+    },
+    create: {
+      deviceId,
+      restrictions: restrictions as Prisma.InputJsonValue
+    },
   })
 
   return sendSuccess(res, config, {
@@ -178,10 +185,14 @@ export async function createmacOSConfig(req: Request, res: Response) {
 
   const config = await prisma.deviceConfig.upsert({
     where: { deviceId },
-    //@ts-ignore TODO: REmove these
-    update: { restrictions, cfConfigHash: null },
-    //@ts-ignore TODO: REmove these
-    create: { deviceId, restrictions },
+    update: {
+      restrictions: restrictions as Prisma.InputJsonValue,
+      cfConfigHash: null
+    },
+    create: {
+      deviceId,
+      restrictions: restrictions as Prisma.InputJsonValue
+    },
   })
 
   return sendSuccess(res, config, {

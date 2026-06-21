@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
+import { getGatewayPriceId } from '../config/plans.js'
+import type { PlanId, BillingInterval } from '../config/plans.js'
 
 // Lazy init — only if key is set
 let _stripe: Stripe | null = null
@@ -9,8 +11,7 @@ function getStripe(): Stripe {
   if (!_stripe) {
     if (!env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set')
     _stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      //@ts-ignore
-      apiVersion: '2024-04-10'
+      apiVersion: '2026-05-27.dahlia',
     })
   }
   return _stripe
@@ -21,12 +22,17 @@ function getStripe(): Stripe {
 export async function createStripeCheckout(
   accountId: string,
   email: string,
+  plan: 'pro' | 'family',
+  interval: BillingInterval,
   successUrl: string,
   cancelUrl: string
 ): Promise<string> {
   const stripe = getStripe()
 
-  if (!env.STRIPE_PRO_PRICE_ID) throw new Error('STRIPE_PRO_PRICE_ID not set')
+  const priceId = getGatewayPriceId('stripe', plan, interval, env as unknown as Record<string, string | undefined>)
+  if (!priceId) {
+    throw new Error(`Stripe price ID not configured for ${plan} (${interval})`)
+  }
 
   // Get or create Stripe customer
   let sub = await prisma.subscription.findUnique({
@@ -49,12 +55,12 @@ export async function createStripeCheckout(
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
-    line_items: [{ price: env.STRIPE_PRO_PRICE_ID, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: { accountId },
+    metadata: { accountId, plan, interval },
     subscription_data: {
-      metadata: { accountId },
+      metadata: { accountId, plan, interval },
     },
   })
 
@@ -111,6 +117,8 @@ export async function handleStripeWebhook(
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
       const accountId = session.metadata?.accountId
+      const plan = (session.metadata?.plan as PlanId | undefined) ?? 'pro'
+      const interval = (session.metadata?.interval as BillingInterval | undefined) ?? 'monthly'
       if (!accountId || !session.subscription) break
 
       const stripeSub = await stripe.subscriptions.retrieve(
@@ -120,11 +128,11 @@ export async function handleStripeWebhook(
       await prisma.subscription.update({
         where: { accountId },
         data: {
-          plan: 'pro',
+          plan,
+          billingInterval: interval,
           gateway: 'stripe',
           stripeSubId: stripeSub.id,
-          //@ts-ignore TODO: REmove these
-          currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+          currentPeriodEnd: new Date(stripeSub.items.data[0].current_period_end * 1000),
           cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
         },
       })
@@ -134,6 +142,7 @@ export async function handleStripeWebhook(
     case 'customer.subscription.updated': {
       const stripeSub = event.data.object as Stripe.Subscription
       const accountId = stripeSub.metadata?.accountId
+      const plan = (stripeSub.metadata?.plan as PlanId | undefined) ?? 'pro'
       if (!accountId) break
 
       const isActive = ['active', 'trialing'].includes(stripeSub.status)
@@ -141,9 +150,8 @@ export async function handleStripeWebhook(
       await prisma.subscription.update({
         where: { accountId },
         data: {
-          plan: isActive ? 'pro' : 'free',
-          //@ts-ignore TODO: REmove these
-          currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+          plan: isActive ? plan : 'free',
+          currentPeriodEnd: new Date(stripeSub.items.data[0].current_period_end * 1000),
           cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
         },
       })

@@ -12,6 +12,12 @@ datasource db {
 enum SubscriptionPlan {
   free
   pro
+  family
+}
+
+enum BillingInterval {
+  monthly
+  yearly
 }
 
 enum DeviceType {
@@ -31,19 +37,19 @@ enum ActivityAction {
 // ─── User ───────────────────────────────────────────────
 
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
-  passwordHash        String
-  emailVerified       Boolean   @default(false)
-  emailVerifyToken    String?   @unique
-  emailVerifyExpiry   DateTime?
-  passwordResetToken  String?   @unique
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String
+  emailVerified   Boolean  @default(false)
+  emailVerifyToken  String?  @unique
+  emailVerifyExpiry DateTime?
+  passwordResetToken  String?  @unique
   passwordResetExpiry DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  sessions Session[]
-  account  Account?
+  sessions    Session[]
+  account     Account?
 
   @@index([email])
 }
@@ -73,24 +79,24 @@ model Account {
   userId String @unique
 
   // Profile locking
-  isLocked       Boolean @default(false)
-  lockPin        String? // bcrypt hashed
+  isLocked    Boolean @default(false)
+  lockPin     String? // bcrypt hashed
   lockoutEnabled Boolean @default(true)
 
   // Cloudflare (Day 2)
-  cfConnected     Boolean   @default(false)
-  cfAccountId     String?
-  cfAccountEmail  String?
-  cloudflareToken String? // AES-256-GCM encrypted scoped token
-  cfZoneId        String?
-  cfGatewayId     String?
-  cfTeamName      String?
-  lastSyncAt      DateTime?
+  cfConnected        Boolean @default(false)
+  cfAccountId        String?
+  cfAccountEmail     String?
+  cloudflareToken    String? // AES-256-GCM encrypted scoped token
+  cfZoneId           String?
+  cfGatewayId        String?
+  cfTeamName         String? // Zero Trust team name (subdomain) for WARP login
+  lastSyncAt         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   policies     ContentPolicy[]
   devices      Device[]
   activityLogs ActivityLog[]
@@ -110,11 +116,16 @@ model ContentPolicy {
   blockedCategories Int[]
 
   // Custom domain lists
-  blockedDomains String[]
-  allowedDomains String[]
+  blockedDomains  String[]
+  allowedDomains  String[]
 
   // SafeSearch
   safeSearchEnabled Boolean @default(false)
+
+  // Time-based activation — null means always active.
+  // Shape: { days: number[], startTime: "HH:MM", endTime: "HH:MM", timezone: string }
+  // Mirrors Cloudflare Gateway's native `schedule` rule parameter.
+  schedule Json?
 
   // CF Gateway policy ID (after push)
   cfPolicyId String?
@@ -139,7 +150,7 @@ model Device {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  account Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   config  DeviceConfig?
 
   @@index([accountId])
@@ -155,8 +166,8 @@ model DeviceConfig {
   restrictions Json @default("{}")
 
   cfConfigHash String? // used to detect stale configs
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 }
@@ -164,15 +175,15 @@ model DeviceConfig {
 // ─── ActivityLog ─────────────────────────────────────────
 
 model ActivityLog {
-  id         String         @id @default(uuid())
-  accountId  String
-  domain     String
-  action     ActivityAction
-  categoryId Int?
-  policyId   String?
-  cfLogId    String?        @unique // dedup key from CF
-  timestamp  DateTime
-  createdAt  DateTime       @default(now())
+  id          String         @id @default(uuid())
+  accountId   String
+  domain      String
+  action      ActivityAction
+  categoryId  Int?
+  policyId    String?
+  cfLogId     String?        @unique // dedup key from CF
+  timestamp   DateTime
+  createdAt   DateTime       @default(now())
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -185,23 +196,24 @@ model ActivityLog {
 // ─── Subscription ────────────────────────────────────────
 
 model Subscription {
-  id        String @id @default(uuid())
-  accountId String @unique
+  id        String           @id @default(uuid())
+  accountId String           @unique
 
-  plan SubscriptionPlan @default(free)
+  plan           SubscriptionPlan @default(free)
+  billingInterval BillingInterval @default(monthly)
 
   // Stripe (international)
-  stripeCustomerId String? @unique
-  stripeSubId      String? @unique
+  stripeCustomerId  String? @unique
+  stripeSubId       String? @unique
 
   // Razorpay (India)
-  razorpayCustomerId     String? @unique
+  razorpayCustomerId    String? @unique
   razorpaySubscriptionId String? @unique
 
   // Shared
-  gateway           String? // 'stripe' | 'razorpay'
+  gateway           String?   // 'stripe' | 'razorpay'
   currentPeriodEnd  DateTime?
-  cancelAtPeriodEnd Boolean   @default(false)
+  cancelAtPeriodEnd Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

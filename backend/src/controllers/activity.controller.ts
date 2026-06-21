@@ -4,6 +4,7 @@ import { prisma } from '../config/database.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { logSyncQueue } from '../workers/logSync.worker.js'
 import { syncLogsForAccount } from '../services/logSync.service.js'
+import { getPlanLimits } from '../config/plans.js'
 
 // ─── Helpers ──────────────────────────────────────────────
 
@@ -19,10 +20,6 @@ function getPeriodStart(period: string): Date {
     default:
       return new Date(now.getTime() - 24 * 60 * 60 * 1000)
   }
-}
-
-function getPlanRetentionDays(plan: string): number {
-  return plan === 'pro' ? 90 : 7 // free users can only see 7 days
 }
 
 // ─── GET /api/activity ────────────────────────────────────
@@ -44,7 +41,7 @@ export async function getActivityLogs(req: Request, res: Response) {
     select: { plan: true },
   })
 
-  const maxRetentionDays = getPlanRetentionDays(sub?.plan ?? 'free')
+  const maxRetentionDays = getPlanLimits(sub?.plan ?? 'free').logRetentionDays
   const requestedStart = getPeriodStart(period)
   const minAllowedStart = new Date(
     Date.now() - maxRetentionDays * 24 * 60 * 60 * 1000
@@ -106,7 +103,7 @@ export async function getActivityChart(req: Request, res: Response) {
     select: { plan: true },
   })
 
-  const maxRetentionDays = getPlanRetentionDays(sub?.plan ?? 'free')
+  const maxRetentionDays = getPlanLimits(sub?.plan ?? 'free').logRetentionDays
   const requestedStart = getPeriodStart(period)
   const minAllowedStart = new Date(
     Date.now() - maxRetentionDays * 24 * 60 * 60 * 1000
@@ -295,7 +292,7 @@ export async function exportActivityCSV(req: Request, res: Response) {
   res.setHeader('Content-Type', 'text/csv')
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename="Noori-activity-${period}-${Date.now()}.csv"`
+    `attachment; filename="noori-activity-${period}-${Date.now()}.csv"`
   )
 
   return res.send(csv)

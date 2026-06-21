@@ -1,5 +1,7 @@
-import 'dotenv/config'
 import { z } from 'zod'
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -16,25 +18,30 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().length(32, 'ENCRYPTION_KEY must be exactly 32 chars'),
 
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().default('noreply@Noori.app'),
+  EMAIL_FROM: z.string().email().default('noreply@noori.app'),
 
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
 
-  // Stripe
+  // Stripe — one price ID per plan + interval combo (USD only, set in Stripe dashboard)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRO_PRICE_ID: z.string().optional(),
+  STRIPE_PRO_MONTHLY_PRICE_ID: z.string().optional(),
+  STRIPE_PRO_YEARLY_PRICE_ID: z.string().optional(),
+  STRIPE_FAMILY_MONTHLY_PRICE_ID: z.string().optional(),
+  STRIPE_FAMILY_YEARLY_PRICE_ID: z.string().optional(),
 
-  // Razorpay
+  // Razorpay — one plan ID per plan + interval combo
+  // Note: Razorpay plans are created in INR or USD depending on your
+  // account region, but the displayed price to the user is always USD
+  // (per product decision — single global price, no separate INR tier)
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
-  RAZORPAY_PRO_PLAN_ID: z.string().optional(),
-
-  // Pricing (INR for Razorpay, USD for Stripe)
-  PRO_PRICE_USD: z.coerce.number().default(9),
-  PRO_PRICE_INR: z.coerce.number().default(499),
+  RAZORPAY_PRO_MONTHLY_PLAN_ID: z.string().optional(),
+  RAZORPAY_PRO_YEARLY_PLAN_ID: z.string().optional(),
+  RAZORPAY_FAMILY_MONTHLY_PLAN_ID: z.string().optional(),
+  RAZORPAY_FAMILY_YEARLY_PLAN_ID: z.string().optional(),
 })
 
 function loadEnv() {

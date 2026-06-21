@@ -354,17 +354,17 @@ function AndroidSetupSteps({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="pt-2 space-y-2 text-xs text-foreground-muted">
+              {/* <div className="pt-2 space-y-2 text-xs text-foreground-muted">
                 <p>Managed mode (using Andoff or ManageEngine) prevents factory resets, app uninstalls, and developer mode — making the filter much harder to bypass.</p>
                 <a
-                  href="https://dashboard.techlockdown.com/tutorials/andoff-overview"
+                  href="https://dashboard.others.com/tutorials/andoff-overview"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-amber-500 hover:text-amber-400 transition-colors"
                 >
                   See managed mode guide <ExternalLink size={10} />
                 </a>
-              </div>
+              </div> */}
             </motion.div>
           )}
         </AnimatePresence>

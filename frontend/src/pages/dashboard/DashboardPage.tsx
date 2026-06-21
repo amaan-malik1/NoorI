@@ -29,8 +29,8 @@ function ScoreRing({ score }: { score: number }) {
 
   const color =
     score >= 80 ? '#22C55E' :
-    score >= 50 ? '#F5A623' :
-    '#EF4444'
+      score >= 50 ? '#F5A623' :
+        '#EF4444'
 
   return (
     <div className="relative w-36 h-36 flex items-center justify-center">
@@ -141,7 +141,11 @@ export default function DashboardPage() {
               },
               {
                 label: 'Plan',
-                value: account?.subscription?.plan === 'pro' ? 'Pro' : 'Free',
+                value: account?.subscription?.plan === 'family'
+                  ? 'Family'
+                  : account?.subscription?.plan === 'pro'
+                    ? 'Pro'
+                    : 'Free',
                 ok: true,
               },
             ].map(({ label, value, ok }) => (

@@ -203,6 +203,38 @@ export async function ensureWARPEnrollmentPolicy(
   }
 }
 
+// ─── Step 7: Enable Gateway with WARP filtering mode ─────
+// Without this setting, Cloudflare One app connects but routes
+// traffic as plain WARP (consumer product) instead of through
+// Zero Trust Gateway — so no blocking rules apply.
+
+export async function enableGatewayFiltering(
+  token: string,
+  cfAccountId: string
+): Promise<void> {
+  try {
+    // Set the default device settings to use Gateway proxy mode
+    // This is what makes warp=on AND gateway=on in the trace
+    await cfFetch(
+      token,
+      `/accounts/${cfAccountId}/devices/policy/settings`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          gateway_proxy_enabled: true,
+          gateway_unique_id: cfAccountId,
+          root_certificate_installation_enabled: false,
+          use_zt_virtual_ip: false,
+        }),
+      }
+    )
+    console.log('[CF Setup] ✅ Gateway filtering mode enabled')
+  } catch (err) {
+    // Non-fatal — user can enable this manually in Zero Trust settings
+    console.warn('[CF Setup] Could not enable gateway filtering mode:', err)
+  }
+}
+
 // ─── Connect account (full wizard flow) ──────────────────
 
 export async function connectCloudflareAccount(
@@ -229,10 +261,12 @@ export async function connectCloudflareAccount(
   const teamName = await getTeamName(scopedToken, cfAccountId)
 
   // 5. Ensure a WARP enrollment policy exists so users can connect devices
-  //    This is the step most people miss when setting up Zero Trust manually.
   await ensureWARPEnrollmentPolicy(scopedToken, cfAccountId)
 
-  // 6. Encrypt and store scoped token
+  // 6. Enable Gateway with WARP mode so blocking rules actually apply
+  await enableGatewayFiltering(scopedToken, cfAccountId)
+
+  // 7. Encrypt and store scoped token
   const encryptedToken = encrypt(scopedToken)
 
   await prisma.account.update({
@@ -307,6 +341,7 @@ export async function pushPolicyToCloudflare(
       allowedDomains: true,
       safeSearchEnabled: true,
       isActive: true,
+      schedule: true,
     },
   })
 
@@ -317,12 +352,20 @@ export async function pushPolicyToCloudflare(
     policy.blockedDomains
   )
 
-  const body = {
+  const body: Record<string, unknown> = {
     name: policy.name,
     action: 'block',
     traffic,
     enabled: policy.isActive,
     filters: ['dns'],
+  }
+
+  // Attach Cloudflare-native schedule if one is set — Cloudflare's own
+  // edge handles activating/deactivating the rule at the right times,
+  // no background worker needed on our end.
+  if (policy.schedule) {
+    const { toCloudflareSchedule } = await import('../types/schedule.types.js')
+    body.schedule = toCloudflareSchedule(policy.schedule as never)
   }
 
   let cfPolicyId = policy.cfPolicyId

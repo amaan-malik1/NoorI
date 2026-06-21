@@ -12,6 +12,11 @@ export interface CFStatus {
   lastSyncAt: string | null
 }
 
+export interface PolicySchedule {
+  days: Partial<Record<'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', string>>
+  timeZone?: string
+}
+
 export interface ContentPolicy {
   id: string
   name: string
@@ -21,6 +26,7 @@ export interface ContentPolicy {
   safeSearchEnabled: boolean
   isActive: boolean
   cfPolicyId: string | null
+  schedule: PolicySchedule | null
   createdAt: string
   updatedAt: string
 }
@@ -68,6 +74,16 @@ export function useDisconnectCF() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cf-status'] })
       qc.invalidateQueries({ queryKey: ['account'] })
+    },
+  })
+}
+
+export function useRepairCF() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post('/cloudflare/repair').then(r => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cf-status'] })
     },
   })
 }

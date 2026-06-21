@@ -3,30 +3,61 @@ import { api } from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────
 
+export type PlanId = 'free' | 'pro' | 'family'
+export type BillingInterval = 'monthly' | 'yearly'
+
+export interface PlanLimits {
+  id: PlanId
+  name: string
+  tagline: string
+  priceMonthly: number
+  priceYearly: number
+  maxDevices: number | null
+  maxPolicies: number | null
+  restrictedToBasicPreset: boolean
+  logRetentionDays: number
+  logSyncIntervalMinutes: number
+  iosConfigGenerator: boolean
+  macosConfigGenerator: boolean
+  safeSearchEnforcement: boolean
+  customDomains: boolean
+  timeLock: boolean
+  scheduledAutoLock: boolean
+  policyScheduling: boolean
+  bypassEmailAlerts: boolean
+  csvExport: boolean
+  prioritySupport: boolean
+}
+
 export interface AccountData {
   id: string
   isLocked: boolean
   lockoutEnabled: boolean
+  hasLockPin: boolean
   cfConnected: boolean
-  lockPin: string
-  cfAccountEmail: string | null
   cfAccountId: string | null
+  cfAccountEmail: string | null
   cfGatewayId: string | null
   lastSyncAt: string | null
-  subscription: { plan: 'free' | 'pro'; currentPeriodEnd: string | null }
+  subscription: { plan: PlanId; currentPeriodEnd: string | null }
   _count: { policies: number; devices: number }
 }
 
 export interface BillingStatus {
-  plan: 'free' | 'pro'
+  plan: PlanId
+  billingInterval: BillingInterval
   gateway: 'stripe' | 'razorpay' | null
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
-  pricing: { usd: number; inr: number }
+  plans: Record<PlanId, PlanLimits>
   gatewaysAvailable: { stripe: boolean; razorpay: boolean }
+  priceIdsConfigured: {
+    stripe: { pro: { monthly: boolean; yearly: boolean }; family: { monthly: boolean; yearly: boolean } }
+    razorpay: { pro: { monthly: boolean; yearly: boolean }; family: { monthly: boolean; yearly: boolean } }
+  }
 }
 
-// Account hooks 
+// ── Account hooks ─────────────────────────────────────────
 
 export function useAccount() {
   return useQuery<AccountData>({
@@ -94,8 +125,26 @@ export function useBilling() {
 
 export function useCreateCheckout() {
   return useMutation({
-    mutationFn: (data: { gateway: 'stripe' | 'razorpay'; name?: string }) =>
-      api.post('/billing/checkout', data).then(r => r.data.data),
+    mutationFn: (data: {
+      gateway: 'stripe' | 'razorpay'
+      plan: 'pro' | 'family'
+      interval: BillingInterval
+      name?: string
+    }) => api.post('/billing/checkout', data).then(r => r.data.data),
+  })
+}
+
+export function useVerifyRazorpayPayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      razorpay_payment_id: string
+      razorpay_subscription_id: string
+      razorpay_signature: string
+      plan: 'pro' | 'family'
+      interval: BillingInterval
+    }) => api.post('/billing/razorpay/verify', data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing'] }),
   })
 }
 

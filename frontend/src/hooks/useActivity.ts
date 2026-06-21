@@ -23,7 +23,7 @@ export interface ActivityLogsResponse {
     totalPages: number
   }
   meta: {
-    plan: 'free' | 'pro'
+    plan: 'free' | 'pro' | 'family'
     retentionDays: number
   }
 }
@@ -112,7 +112,7 @@ export function useExportCSV(period: Period) {
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
-      link.download = `Noori-activity-${period}-${Date.now()}.csv`
+      link.download = `noori-activity-${period}-${Date.now()}.csv`
       document.body.appendChild(link)
       link.click()
       link.remove()

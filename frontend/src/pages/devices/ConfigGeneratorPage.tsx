@@ -161,7 +161,7 @@ function RestrictionGroup({
 
 export default function ConfigGeneratorPage() {
   const { user } = useAuth()
-  const isPro = user?.account?.subscription?.plan === 'pro'
+  const isPro = user?.account?.subscription?.plan === 'pro' || user?.account?.subscription?.plan === 'family'
 
   const { data: devices = [], isLoading } = useDevices()
   const saveConfig = useSaveDeviceConfig()
@@ -368,7 +368,7 @@ export default function ConfigGeneratorPage() {
                     <ol className="text-xs text-foreground-muted space-y-1">
                       <li>1. Download the .mobileconfig file to your iPhone</li>
                       <li>2. Open Settings → General → VPN & Device Management</li>
-                      <li>3. Tap the Noori profile → Install</li>
+                      <li>3. Tap the NoorI profile → Install</li>
                       <li>4. Enter your device passcode when prompted</li>
                     </ol>
                   ) : (

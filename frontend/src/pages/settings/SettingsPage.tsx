@@ -5,12 +5,14 @@ import {
   User, Lock, Cloud, CreditCard, Shield,
   CheckCircle2, AlertTriangle, RefreshCw,
   Eye, EyeOff, ExternalLink, Zap, LogOut,
-  KeyRound, Settings, ChevronRight, Info
+  KeyRound, Settings, ChevronRight, Info,
+  Users, Sparkles, Smartphone, FileText, Headset
 } from 'lucide-react'
 import {
   useAccount, useSetPin, useLockProfile, useUnlockProfile,
   useUpdateLockingPrefs, useUpdateProfile, useBilling,
-  useCreateCheckout, useCancelSubscription, useSyncCFAccount
+  useCreateCheckout, useCancelSubscription, useSyncCFAccount,
+  useVerifyRazorpayPayment, type PlanId, type BillingInterval
 } from '@/hooks/useAccount'
 import { useCFStatus, useDisconnectCF } from '@/hooks/useCloudflare'
 import { useAuth } from '@/hooks/useAuth'
@@ -20,8 +22,9 @@ import Input from '@/components/ui/Input'
 import Toggle from '@/components/ui/Toggle'
 import Badge from '@/components/ui/Badge'
 import Card from '@/components/ui/Card'
+import FaqSection from '@/components/faq/FaqSection'
 
-// Tab config 
+// ── Tab config ────────────────────────────────────────────
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: <User size={15} /> },
@@ -30,7 +33,7 @@ const TABS = [
   { id: 'billing', label: 'Billing', icon: <CreditCard size={15} /> },
 ]
 
-// Section wrapper 
+// ── Section wrapper ───────────────────────────────────────
 
 function Section({
   title,
@@ -54,12 +57,12 @@ function Section({
   )
 }
 
-// Divider 
+// ── Divider ───────────────────────────────────────────────
 function Divider() {
   return <div className="border-t border-border" />
 }
 
-// Profile Tab 
+// ── Profile Tab ───────────────────────────────────────────
 
 function ProfileTab() {
   const { user } = useAuth()
@@ -172,7 +175,7 @@ function ProfileTab() {
   )
 }
 
-// Locking Tab 
+// ── Locking Tab ───────────────────────────────────────────
 
 function LockingTab() {
   const { data: account } = useAccount()
@@ -243,7 +246,7 @@ function LockingTab() {
                 leftIcon={<Lock size={13} />}
                 onClick={() => lockProfile.mutate()}
                 loading={lockProfile.isPending}
-                disabled={!account?.lockPin}
+                disabled={!account?.hasLockPin}
               >
                 Lock now
               </Button>
@@ -256,7 +259,7 @@ function LockingTab() {
               <Input
                 label="Enter PIN to unlock"
                 type="password"
-                placeholder="4–8 digit PIN"
+                placeholder="4-8 digit PIN"
                 value={unlockPin}
                 onChange={e => setUnlockPin(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleUnlock()}
@@ -276,7 +279,7 @@ function LockingTab() {
             </div>
           )}
 
-          {!account?.lockPin && !account?.isLocked && (
+          {!account?.hasLockPin && !account?.isLocked && (
             <p className="text-xs text-foreground-muted mt-3 flex items-center gap-1.5">
               <Info size={12} />
               Set a PIN below to enable locking
@@ -289,11 +292,11 @@ function LockingTab() {
 
       {/* Set PIN */}
       <Section
-        title={account?.lockPin ? 'Change PIN' : 'Set a lock PIN'}
-        description="A 4–8 digit PIN that protects your Noori settings from unauthorized changes."
+        title={account?.hasLockPin ? 'Change PIN' : 'Set a lock PIN'}
+        description="A 4-8 digit PIN that protects your NoorI settings from unauthorized changes."
       >
         <Card padding="md" className="space-y-4">
-          {account?.lockPin && (
+          {account?.hasLockPin && (
             <Input
               label="Current PIN"
               type="password"
@@ -306,11 +309,11 @@ function LockingTab() {
           <Input
             label="New PIN"
             type="password"
-            placeholder="4–8 digits"
+            placeholder="4-8 digits"
             value={pinForm.pin}
             onChange={e => setPinForm(p => ({ ...p, pin: e.target.value.replace(/\D/g, '').slice(0, 8) }))}
             leftIcon={<KeyRound size={14} />}
-            hint="Numbers only, 4–8 digits"
+            hint="Numbers only, 4-8 digits"
           />
           <Input
             label="Confirm PIN"
@@ -327,7 +330,7 @@ function LockingTab() {
             </p>
           )}
           <Button size="sm" onClick={handleSetPin} loading={setPin.isPending} disabled={!pinForm.pin || !pinForm.confirm}>
-            {account?.lockPin ? 'Change PIN' : 'Set PIN'}
+            {account?.hasLockPin ? 'Change PIN' : 'Set PIN'}
           </Button>
         </Card>
       </Section>
@@ -526,240 +529,355 @@ function CloudflareTab() {
   )
 }
 
-// ── Billing Tab ───────────────────────────────────────────
+// ── Billing Tab 
+
+const PLAN_ICON: Record<PlanId, React.ReactNode> = {
+  free: <Shield size={18} />,
+  pro: <Zap size={18} />,
+  family: <Users size={18} />,
+}
+
+const PLAN_FEATURE_ROWS: { key: string; label: string }[] = [
+  { key: 'maxDevices', label: 'Devices' },
+  { key: 'maxPolicies', label: 'Content policies' },
+  { key: 'logRetentionDays', label: 'Activity history' },
+  { key: 'iosConfigGenerator', label: 'iOS config generator' },
+  { key: 'macosConfigGenerator', label: 'macOS config generator' },
+  { key: 'policyScheduling', label: 'Time-based scheduling' },
+  { key: 'timeLock', label: 'Time-lock profile' },
+  { key: 'scheduledAutoLock', label: 'Scheduled auto-lock' },
+  { key: 'bypassEmailAlerts', label: 'Bypass email alerts' },
+]
+
+function formatFeatureValue(plan: import('@/hooks/useAccount').PlanLimits, key: string): string {
+  const value = (plan as unknown as Record<string, unknown>)[key]
+  if (key === 'maxDevices' || key === 'maxPolicies') {
+    return value === null ? 'Unlimited' : String(value)
+  }
+  if (key === 'logRetentionDays') {
+    return `${value} days`
+  }
+  return value ? '✓' : '-'
+}
+
+// ── Single plan card ───────────────────────────────────────
+
+function PlanCard({
+  plan,
+  interval,
+  isCurrent,
+  gatewaysAvailable,
+  onCheckout,
+  checkoutLoading,
+}: {
+  plan: import('@/hooks/useAccount').PlanLimits
+  interval: BillingInterval
+  isCurrent: boolean
+  gatewaysAvailable: { stripe: boolean; razorpay: boolean }
+  onCheckout: (gateway: 'stripe' | 'razorpay') => void
+  checkoutLoading: boolean
+}) {
+  const price = interval === 'yearly' ? plan.priceYearly : plan.priceMonthly
+  const monthlyEquivalent = interval === 'yearly' ? (plan.priceYearly / 12).toFixed(2) : null
+  const isFamily = plan.id === 'family'
+
+  return (
+    <Card
+      padding="lg"
+      className={`relative space-y-5 ${isFamily ? 'border-amber-500/30' : ''} ${isCurrent ? 'ring-1 ring-success/30' : ''}`}
+    >
+      {isFamily && !isCurrent && (
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+          <Badge variant="amber" size="sm">Most popular</Badge>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isFamily ? 'bg-amber-500/15 text-amber-500' : 'bg-background-overlay text-foreground-muted'
+          }`}>
+          {PLAN_ICON[plan.id]}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-foreground">{plan.name}</span>
+            {isCurrent && <Badge variant="success" size="sm">Current plan</Badge>}
+          </div>
+          <p className="text-xs text-foreground-muted">{plan.tagline}</p>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold text-foreground">${price}</span>
+          <span className="text-sm text-foreground-muted">/{interval === 'yearly' ? 'yr' : 'mo'}</span>
+        </div>
+        {monthlyEquivalent && (
+          <p className="text-xs text-foreground-subtle mt-0.5">
+            ≈ ${monthlyEquivalent}/mo · billed yearly · save 20%
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2 pt-2 border-t border-border">
+        {PLAN_FEATURE_ROWS.map(row => (
+          <div key={row.key} className="flex items-center justify-between">
+            <span className="text-xs text-foreground-muted">{row.label}</span>
+            <span className="text-xs font-medium text-foreground">
+              {formatFeatureValue(plan, row.key)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {!isCurrent && (
+        <div className="space-y-2 pt-2">
+          {gatewaysAvailable.stripe && (
+            <Button
+              onClick={() => onCheckout('stripe')}
+              loading={checkoutLoading}
+              className="w-full"
+              size="sm"
+              rightIcon={<ExternalLink size={12} />}
+            >
+              Pay with Card
+            </Button>
+          )}
+          {gatewaysAvailable.razorpay && (
+            <Button
+              variant={gatewaysAvailable.stripe ? 'secondary' : 'primary'}
+              onClick={() => onCheckout('razorpay')}
+              loading={checkoutLoading}
+              className="w-full"
+              size="sm"
+            >
+              Pay with UPI / Card (India)
+            </Button>
+          )}
+          {!gatewaysAvailable.stripe && !gatewaysAvailable.razorpay && (
+            <p className="text-xs text-foreground-subtle text-center py-2">
+              Payments aren't configured for this plan yet
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ── Billing tab ───────────────────────────────────────────
 
 function BillingTab() {
   const { data: billing, isLoading } = useBilling()
   const { user } = useAuth()
   const createCheckout = useCreateCheckout()
+  const verifyPayment = useVerifyRazorpayPayment()
   const cancelSub = useCancelSubscription()
   const [cancelConfirm, setCancelConfirm] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [interval, setInterval] = useState<BillingInterval>('monthly')
+  const [checkoutPlan, setCheckoutPlan] = useState<'pro' | 'family' | null>(null)
 
-  const isPro = billing?.plan === 'pro'
+  const currentPlan = billing?.plan ?? 'free'
 
-  async function handleStripeCheckout() {
+  async function handleCheckout(plan: 'pro' | 'family', gateway: 'stripe' | 'razorpay') {
     setCheckoutError('')
-    try {
-      const result = await createCheckout.mutateAsync({ gateway: 'stripe' })
-      window.location.href = result.checkoutUrl
-    } catch (err) {
-      setCheckoutError(getErrorMessage(err))
-    }
-  }
-
-  async function handleRazorpayCheckout() {
-    setCheckoutError('')
+    setCheckoutPlan(plan)
     try {
       const result = await createCheckout.mutateAsync({
-        gateway: 'razorpay',
+        gateway,
+        plan,
+        interval,
         name: user?.email ?? '',
       })
-      // Load Razorpay checkout widget
+
+      if (result.gateway === 'stripe' && result.checkoutUrl) {
+        window.location.href = result.checkoutUrl
+        return
+      }
+
+      // Razorpay — open checkout widget, verify on success
       const script = document.createElement('script')
       script.src = 'https://checkout.razorpay.com/v1/checkout.js'
       document.body.appendChild(script)
       script.onload = () => {
-        const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open: () => void } }).Razorpay({
+        const rzp = new (window as unknown as {
+          Razorpay: new (opts: unknown) => { open: () => void }
+        }).Razorpay({
           key: result.keyId,
           subscription_id: result.subscriptionId,
-          name: 'Noori',
-          description: 'Pro Plan — Monthly',
+          name: 'NoorI',
+          description: `${billing?.plans[plan]?.name ?? plan} Plan — ${interval === 'yearly' ? 'Yearly' : 'Monthly'}`,
           prefill: { email: user?.email },
           theme: { color: '#F5A623' },
-          handler: () => {
-            window.location.href = '/dashboard/settings?tab=billing&success=1'
+          handler: async (response: {
+            razorpay_payment_id: string
+            razorpay_subscription_id: string
+            razorpay_signature: string
+          }) => {
+            try {
+              await verifyPayment.mutateAsync({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_signature: response.razorpay_signature,
+                plan,
+                interval,
+              })
+              window.location.href = '/dashboard/settings?tab=billing&success=1'
+            } catch (err) {
+              setCheckoutError(
+                'Payment succeeded but verification failed. Contact support with payment ID: ' +
+                response.razorpay_payment_id
+              )
+            }
           },
         })
         rzp.open()
       }
     } catch (err) {
       setCheckoutError(getErrorMessage(err))
+    } finally {
+      setCheckoutPlan(null)
     }
   }
 
-  if (isLoading) {
-    return <div className="h-40 animate-pulse bg-background-elevated rounded-lg" />
+  if (isLoading || !billing) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 w-48 mx-auto animate-pulse bg-background-elevated rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="h-96 animate-pulse bg-background-elevated rounded-lg" />
+          <div className="h-96 animate-pulse bg-background-elevated rounded-lg" />
+        </div>
+      </div>
+    )
   }
+
+  const proPlan = billing.plans.pro
+  const familyPlan = billing.plans.family
 
   return (
     <div className="space-y-8">
-      {/* Current plan */}
+      {/* Current plan summary */}
       <Section title="Current plan">
-        <Card padding="md" className="space-y-4">
+        <Card padding="md" className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isPro ? 'bg-amber-500/15 text-amber-500' : 'bg-background-overlay text-foreground-muted'
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${currentPlan !== 'free' ? 'bg-amber-500/15 text-amber-500' : 'bg-background-overlay text-foreground-muted'
                 }`}>
-                <Shield size={16} />
+                {PLAN_ICON[currentPlan]}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground capitalize">
-                    {billing?.plan ?? 'Free'} Plan
+                  <span className="text-sm font-semibold text-foreground">
+                    {billing.plans[currentPlan].name} Plan
                   </span>
-                  {isPro && <Badge variant="amber">Active</Badge>}
+                  {currentPlan !== 'free' && <Badge variant="amber">Active</Badge>}
                 </div>
                 <div className="text-xs text-foreground-muted">
-                  {isPro && billing?.currentPeriodEnd
-                    ? `Renews ${formatDate(billing.currentPeriodEnd)}`
-                    : 'Upgrade for advanced features'}
+                  {currentPlan !== 'free' && billing.currentPeriodEnd
+                    ? `Renews ${formatDate(billing.currentPeriodEnd)} · ${billing.billingInterval}`
+                    : 'Free forever — upgrade anytime for more devices and features'}
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Feature comparison */}
-          <div className="space-y-2 pt-2 border-t border-border">
-            {[
-              { label: 'Content policy', free: true, pro: true },
-              { label: 'Device setup guides', free: true, pro: true },
-              { label: '7-day activity logs', free: true, pro: false },
-              { label: '90-day activity logs', free: false, pro: true },
-              { label: 'iOS Config Generator', free: false, pro: true },
-              { label: 'Multiple policies', free: false, pro: true },
-              { label: 'Priority log sync', free: false, pro: true },
-            ].map(feature => (
-              <div key={feature.label} className="flex items-center justify-between">
-                <span className="text-xs text-foreground-muted">{feature.label}</span>
-                <div className={`text-xs font-medium ${isPro ? (feature.pro ? 'text-success' : 'text-foreground-subtle') : (feature.free ? 'text-foreground' : 'text-foreground-subtle')
-                  }`}>
-                  {isPro
-                    ? (feature.pro ? '✓ Included' : '–')
-                    : (feature.free ? '✓ Included' : '–')}
-                </div>
-              </div>
-            ))}
-          </div>
         </Card>
       </Section>
 
-      {/* Upgrade or manage */}
-      {!isPro ? (
+      {currentPlan === 'free' || true ? (
         <>
           <Divider />
           <Section
-            title="Upgrade to Pro"
-            description="Unlock advanced features including iOS config, 90-day logs, and priority sync."
+            title={currentPlan === 'free' ? 'Upgrade your plan' : 'Plans'}
+            description="One price for everyone, billed in USD."
           >
-            <div className="space-y-3">
+            <div className="space-y-5">
               {checkoutError && (
                 <p className="text-sm text-danger-text bg-danger/10 border border-danger/20 rounded-md px-3 py-2">
                   {checkoutError}
                 </p>
               )}
 
-              {/* Stripe — international (only if configured) */}
-              {billing?.gatewaysAvailable.stripe ? (
-                <Card padding="md" className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Pay with Card (International)
-                      </div>
-                      <div className="text-xs text-foreground-muted">
-                        ${billing?.pricing.usd ?? 9}/month · Stripe · Visa, Mastercard, Amex
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={handleStripeCheckout}
-                      loading={createCheckout.isPending}
-                      rightIcon={<ExternalLink size={12} />}
-                    >
-                      ${billing?.pricing.usd ?? 9}/mo
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <Card padding="md" className="space-y-1 opacity-60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Pay with Card (International)
-                      </div>
-                      <div className="text-xs text-foreground-muted">
-                        Stripe · Visa, Mastercard, Amex
-                      </div>
-                    </div>
-                    <Badge variant="muted" size="sm">Coming soon</Badge>
-                  </div>
-                </Card>
-              )}
+              {/* Monthly / yearly toggle */}
+              <div className="flex items-center justify-center">
+                <div className="inline-flex items-center gap-1 p-1 bg-background-overlay rounded-lg border border-border">
+                  <button
+                    onClick={() => setInterval('monthly')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${interval === 'monthly'
+                      ? 'bg-amber-500 text-background'
+                      : 'text-foreground-muted hover:text-foreground'
+                      }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setInterval('yearly')}
+                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${interval === 'yearly'
+                      ? 'bg-amber-500 text-background'
+                      : 'text-foreground-muted hover:text-foreground'
+                      }`}
+                  >
+                    Yearly
+                    <Badge variant={interval === 'yearly' ? 'muted' : 'success'} size="sm">
+                      Save 20%
+                    </Badge>
+                  </button>
+                </div>
+              </div>
 
-              {/* Razorpay — India */}
-              {billing?.gatewaysAvailable.razorpay ? (
-                <Card padding="md" className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Pay with UPI / Card (India)
-                      </div>
-                      <div className="text-xs text-foreground-muted">
-                        ₹{billing?.pricing.inr ?? 499}/month · Razorpay · UPI, Cards, Netbanking
-                      </div>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleRazorpayCheckout}
-                      loading={createCheckout.isPending}
-                    >
-                      ₹{billing?.pricing.inr ?? 499}/mo
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <Card padding="md" className="space-y-1 opacity-60">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        Pay with UPI / Card (India)
-                      </div>
-                      <div className="text-xs text-foreground-muted">
-                        Razorpay · UPI, Cards, Netbanking
-                      </div>
-                    </div>
-                    <Badge variant="muted" size="sm">Coming soon</Badge>
-                  </div>
-                </Card>
-              )}
+              {/* Plan cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <PlanCard
+                  plan={proPlan}
+                  interval={interval}
+                  isCurrent={currentPlan === 'pro'}
+                  gatewaysAvailable={billing.gatewaysAvailable}
+                  onCheckout={gateway => handleCheckout('pro', gateway)}
+                  checkoutLoading={createCheckout.isPending && checkoutPlan === 'pro'}
+                />
+                <PlanCard
+                  plan={familyPlan}
+                  interval={interval}
+                  isCurrent={currentPlan === 'family'}
+                  gatewaysAvailable={billing.gatewaysAvailable}
+                  onCheckout={gateway => handleCheckout('family', gateway)}
+                  checkoutLoading={createCheckout.isPending && checkoutPlan === 'family'}
+                />
+              </div>
 
-              {/* Both unavailable */}
-              {!billing?.gatewaysAvailable.stripe && !billing?.gatewaysAvailable.razorpay && (
-                <p className="text-xs text-foreground-subtle text-center pt-1">
-                  Payments aren't set up yet — Pro upgrade will be available soon.
+              {!billing.gatewaysAvailable.stripe && !billing.gatewaysAvailable.razorpay && (
+                <p className="text-xs text-foreground-subtle text-center">
+                  Payments aren't set up yet — upgrades will be available soon.
                 </p>
               )}
             </div>
           </Section>
         </>
-      ) : (
+      ) : null}
+
+      {/* Manage subscription — only shown for paid plans */}
+      {currentPlan !== 'free' && (
         <>
           <Divider />
           <Section title="Manage subscription">
             <Card padding="md" className="space-y-4">
               <div className="text-sm text-foreground-muted">
-                Gateway: <span className="text-foreground capitalize">{billing?.gateway ?? '—'}</span>
+                Payment method: <span className="text-foreground capitalize">{billing.gateway ?? '—'}</span>
               </div>
 
-              {billing?.cancelAtPeriodEnd ? (
+              {billing.cancelAtPeriodEnd ? (
                 <div className="flex items-start gap-2 p-3 bg-warning/8 border border-warning/20 rounded-md">
                   <AlertTriangle size={14} className="text-warning flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-foreground-muted">
                     Your subscription will cancel on{' '}
                     <strong className="text-foreground">
                       {billing.currentPeriodEnd ? formatDate(billing.currentPeriodEnd) : '—'}
-                    </strong>. You'll keep Pro access until then.
+                    </strong>. You'll keep {billing.plans[currentPlan].name} access until then.
                   </p>
                 </div>
               ) : (
                 <>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setCancelConfirm(true)}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => setCancelConfirm(true)}>
                     Cancel subscription
                   </Button>
 
@@ -773,11 +891,12 @@ function BillingTab() {
                       >
                         <div className="pt-3 border-t border-border space-y-3">
                           <p className="text-xs text-foreground-muted">
-                            You'll keep Pro access until the end of your current billing period.
+                            You'll keep {billing.plans[currentPlan].name} access until the end of your
+                            current billing period.
                           </p>
                           <div className="flex gap-2">
                             <Button variant="secondary" size="sm" onClick={() => setCancelConfirm(false)}>
-                              Keep Pro
+                              Keep {billing.plans[currentPlan].name}
                             </Button>
                             <Button
                               variant="danger"
@@ -798,6 +917,11 @@ function BillingTab() {
           </Section>
         </>
       )}
+
+      <Divider />
+      <Section title="Questions about billing">
+        <FaqSection category="billing" showFilters={false} title="" />
+      </Section>
     </div>
   )
 }

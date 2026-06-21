@@ -2,6 +2,8 @@ import crypto from 'crypto'
 import { env } from '../config/env.js'
 import { prisma } from '../config/database.js'
 import { RazorpaySubStatus } from '../types/billing.types.js'
+import { getGatewayPriceId } from '../config/plans.js'
+import type { PlanId, BillingInterval } from '../config/plans.js'
 
 // Razorpay REST API base
 const RP_BASE = 'https://api.razorpay.com/v1'
@@ -26,21 +28,21 @@ async function rpFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    const description = (err as { error?: { description?: string; code?: string } }).error?.description
-    const code = (err as { error?: { code?: string } }).error?.code
+    const description = (err as { error?: { description?: string } }).error?.description
 
-    // Razorpay returns "Authentication failed" for bad/test key_id+secret pairs.
-    // Surface this as a config error, not a payment error.
+    // Razorpay returns "Authentication failed" for invalid key_id/key_secret —
+    // surface this as a clear config error instead of a generic payment error
     if (res.status === 401 || description?.toLowerCase().includes('authentication failed')) {
       throw new Error(
-        'Razorpay credentials are invalid. Check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your .env file.'
+        'Razorpay credentials are invalid. Check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your environment configuration.'
       )
     }
 
-    throw new Error(description ?? code ?? 'Razorpay API error')
+    throw new Error(description ?? 'Razorpay API error')
   }
   return res.json() as Promise<T>
 }
+
 // ─── Types ────────────────────────────────────────────────
 
 interface RPCustomer {
@@ -90,20 +92,29 @@ async function getOrCreateRPCustomer(
 export async function createRazorpayCheckout(
   accountId: string,
   email: string,
-  name: string
+  name: string,
+  plan: 'pro' | 'family',
+  interval: BillingInterval
 ): Promise<{ subscriptionId: string; checkoutUrl: string; keyId: string }> {
-  if (!env.RAZORPAY_PRO_PLAN_ID) throw new Error('RAZORPAY_PRO_PLAN_ID not set')
+  const planId = getGatewayPriceId('razorpay', plan, interval, env as unknown as Record<string, string | undefined>)
+  if (!planId) {
+    throw new Error(`Razorpay plan ID not configured for ${plan} (${interval})`)
+  }
 
   const customerId = await getOrCreateRPCustomer(accountId, email, name)
+
+  // total_count: 12 cycles for monthly (1 year worth), 1 cycle for yearly
+  // (yearly auto-renews via Razorpay's subscription mechanics on its own cadence)
+  const totalCount = interval === 'monthly' ? 12 : 1
 
   const rpSub = await rpFetch<RPSubscription>('/subscriptions', {
     method: 'POST',
     body: JSON.stringify({
-      plan_id: env.RAZORPAY_PRO_PLAN_ID,
+      plan_id: planId,
       customer_notify: 1,
       quantity: 1,
-      total_count: 12, // 12 months
-      notes: { accountId },
+      total_count: totalCount,
+      notes: { accountId, plan, interval },
     }),
   })
 
@@ -161,13 +172,15 @@ export async function handleRazorpayWebhook(
   const event = JSON.parse(rawBody) as {
     event: string
     payload: {
-      subscription?: { entity: RPSubscription & { notes: { accountId?: string } } }
+      subscription?: { entity: RPSubscription & { notes: { accountId?: string; plan?: string; interval?: string } } }
       payment?: { entity: { id: string; subscription_id?: string } }
     }
   }
 
   const subEntity = event.payload.subscription?.entity
   const accountId = subEntity?.notes?.accountId
+  const plan = (subEntity?.notes as { plan?: PlanId } | undefined)?.plan ?? 'pro'
+  const interval = (subEntity?.notes as { interval?: BillingInterval } | undefined)?.interval ?? 'monthly'
 
   switch (event.event) {
     case 'subscription.activated':
@@ -177,7 +190,8 @@ export async function handleRazorpayWebhook(
       await prisma.subscription.update({
         where: { accountId },
         data: {
-          plan: 'pro',
+          plan,
+          billingInterval: interval,
           gateway: 'razorpay',
           razorpaySubscriptionId: subEntity.id,
           currentPeriodEnd: new Date(subEntity.current_end * 1000),
