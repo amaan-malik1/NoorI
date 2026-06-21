@@ -592,7 +592,9 @@ export default function LandingPage() {
             <div className="grid grid-cols-3 gap-4 px-6 py-4 border-b border-border bg-background-elevated">
               <div className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Feature</div>
               <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">Others</div>
-              <Logo />
+              <div className="text-center text-xs font-semibold text-amber-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                <Shield size={11} /> NoorI
+              </div>
             </div>
 
             <div className="px-6 divide-y divide-border">
