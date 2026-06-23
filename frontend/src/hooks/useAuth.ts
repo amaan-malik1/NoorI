@@ -7,19 +7,28 @@ export function useAuthInit() {
 
   useEffect(() => {
     async function restoreSession() {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 5000)
+
       try {
-        // Try to refresh access token from HttpOnly cookie
-        const refreshRes = await api.post('/auth/refresh')
+        const refreshRes = await api.post(`/auth/refresh`, {}, {
+          signal: controller.signal,
+        })
         const { accessToken } = refreshRes.data.data
 
-        // Fetch user with new token
         const meRes = await api.get('/auth/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
         })
 
         login(accessToken, meRes.data.data)
       } catch {
+        // 401 = not logged in (expected on public pages)
+        // Network error / timeout = treat as logged out
         logout()
+      } finally {
+        clearTimeout(timer)
+        setLoading(false) // always unblock the UI
       }
     }
 

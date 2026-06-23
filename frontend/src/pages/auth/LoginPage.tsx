@@ -96,7 +96,7 @@ export default function LoginPage() {
             {/* Stats */}
             <div className="flex gap-8">
               {[
-                { value: '50+', label: 'API endpoints' },
+                // { value: '50+', label: 'API endpoints' },
                 { value: '5 min', label: 'setup time' },
                 { value: '100%', label: 'Cloudflare powered' },
               ].map((stat) => (

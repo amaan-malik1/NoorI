@@ -10,6 +10,7 @@ import {
   useDevices, useCreateDevice, useDeleteDevice,
   type DeviceType, type Device
 } from '@/hooks/useDevices'
+import { useCFStatus } from '@/hooks/useCloudflare'
 import { getErrorMessage, timeAgo } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -17,9 +18,9 @@ import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import EmptyState from '@/components/ui/EmptyState'
-import { useCFStatus } from '@/hooks/useCloudflare'
+import ZeroTrustSetupGuide from '@/components/ui/ZeroTrustSetupGuide'
 
-// ── Platform config ───────────────────────────────────────
+//  Platform config 
 
 const PLATFORMS: {
   type: DeviceType
@@ -27,15 +28,14 @@ const PLATFORMS: {
   shortLabel: string
   icon: React.ReactNode
   description: string
-}[] =
-  [
+}[] = [
     { type: 'ios', label: 'iPhone / iPad', shortLabel: 'iPhone', icon: <Smartphone size={20} />, description: 'Deep filtering with supervised mode' },
     { type: 'macos', label: 'Mac', shortLabel: 'Mac', icon: <Monitor size={20} />, description: 'Config profile + DNS filtering' },
     { type: 'android', label: 'Android', shortLabel: 'Android', icon: <Smartphone size={20} />, description: 'Cloudflare One VPN app' },
     { type: 'windows', label: 'Windows', shortLabel: 'Windows', icon: <Monitor size={20} />, description: 'Cloudflare One client' },
   ]
 
-// ── iOS Setup Wizard ──────────────────────────────────────
+//  iOS Setup Wizard 
 
 function IOSSetupSteps({
   gatewayId,
@@ -66,17 +66,17 @@ function IOSSetupSteps({
       key: 'login',
       title: 'Log in with your Cloudflare account',
       description: teamName
-        ? `Open the app, tap "Get Started". When asked for "Organization Name", select that option and enter: ${teamName} — then tap Next and sign in with your Cloudflare email.`
-        : 'Open the app, tap "Get Started". When asked for "Organization Name", you\'ll need your Zero Trust team name — reconnect Cloudflare from Settings to auto-fill this.',
+        ? `Open the app, tap "Get Started". For "Organization Name", enter: ${teamName} — then tap Next and sign in with your Cloudflare email.`
+        : 'Open the app, tap "Get Started". You\'ll be asked for an "Organization Name" — see the setup guide below to get yours.',
       action: teamName ? (
-        <div className="mt-1.5 p-2 bg-background-overlay rounded-md border border-border flex items-center justify-between gap-2">
-          <div>
+        <div className="mt-1.5 p-2 bg-background-overlay rounded-md border border-border flex items-center justify-between gap-2 max-w-xs">
+          <div className="min-w-0">
             <div className="text-[10px] text-foreground-subtle mb-0.5">Your Organization Name</div>
-            <code className="text-xs text-amber-500 font-mono">{teamName}</code>
+            <code className="text-xs text-amber-500 font-mono truncate block">{teamName}</code>
           </div>
           <button
             onClick={() => navigator.clipboard.writeText(teamName)}
-            className="text-xs text-foreground-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-border hover:border-border-subtle"
+            className="text-xs text-foreground-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-border hover:border-border-subtle flex-shrink-0"
           >
             Copy
           </button>
@@ -91,7 +91,7 @@ function IOSSetupSteps({
     {
       key: 'cert',
       title: 'Install the Cloudflare certificate (recommended)',
-      description: 'Lets Noori show a helpful block page instead of a generic error when a site is blocked.',
+      description: 'Lets NoorI show a helpful block page instead of a generic error when a site is blocked.',
       action: (
         <a
           href="https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/user-side-certificates/install-cloudflare-cert/"
@@ -132,6 +132,11 @@ function IOSSetupSteps({
           <p>Go to <strong className="text-foreground">Settings</strong> — if you see "This iPhone is supervised..." at the top, it's supervised and you get stronger filtering. If not, the setup below still works.</p>
         </div>
       </div>
+
+      {/* Zero Trust setup guide — only shown if team name not yet detected */}
+      {!teamName && (
+        <ZeroTrustSetupGuide collapsible defaultOpen={false} />
+      )}
 
       {/* Progress */}
       <div className="flex items-center justify-between text-xs text-foreground-muted">
@@ -186,7 +191,7 @@ function IOSSetupSteps({
   )
 }
 
-// ── macOS Setup Wizard ────────────────────────────────────
+//  macOS Setup Wizard 
 
 function MacOSSetupSteps() {
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -270,7 +275,7 @@ function MacOSSetupSteps() {
   )
 }
 
-// ── Android Setup Wizard ──────────────────────────────────
+//  Android Setup Wizard 
 
 function AndroidSetupSteps({
   teamName,
@@ -309,16 +314,16 @@ function AndroidSetupSteps({
       title: 'Sign in with your Cloudflare account',
       description: teamName
         ? `Open the app, tap "Get Started". For "Organization Name", enter: ${teamName} — then tap Next and sign in with your Cloudflare email.`
-        : 'Open the app, tap "Get Started". You\'ll need your Zero Trust team name for "Organization Name" — reconnect Cloudflare from Settings to auto-fill this.',
+        : 'Open the app, tap "Get Started". You\'ll be asked for an "Organization Name" — see the setup guide below to get yours.',
       action: teamName ? (
-        <div className="mt-1.5 p-2 bg-background-overlay rounded-md border border-border flex items-center justify-between gap-2">
-          <div>
+        <div className="mt-1.5 p-2 bg-background-overlay rounded-md border border-border flex items-center justify-between gap-2 max-w-xs">
+          <div className="min-w-0">
             <div className="text-[10px] text-foreground-subtle mb-0.5">Your Organization Name</div>
-            <code className="text-xs text-amber-500 font-mono">{teamName}</code>
+            <code className="text-xs text-amber-500 font-mono truncate block">{teamName}</code>
           </div>
           <button
             onClick={() => navigator.clipboard.writeText(teamName)}
-            className="text-xs text-foreground-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-border hover:border-border-subtle"
+            className="text-xs text-foreground-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-border hover:border-border-subtle flex-shrink-0"
           >
             Copy
           </button>
@@ -334,6 +339,11 @@ function AndroidSetupSteps({
 
   return (
     <div className="space-y-4">
+      {/* Zero Trust setup guide — only shown if team name not yet detected */}
+      {!teamName && (
+        <ZeroTrustSetupGuide collapsible defaultOpen={false} />
+      )}
+
       {/* Managed mode callout */}
       <div className="p-3.5 bg-background-elevated border border-border rounded-lg space-y-2">
         <button
@@ -354,17 +364,17 @@ function AndroidSetupSteps({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              {/* <div className="pt-2 space-y-2 text-xs text-foreground-muted">
+              <div className="pt-2 space-y-2 text-xs text-foreground-muted">
                 <p>Managed mode (using Andoff or ManageEngine) prevents factory resets, app uninstalls, and developer mode — making the filter much harder to bypass.</p>
                 <a
-                  href="https://dashboard.others.com/tutorials/andoff-overview"
+                  href="https://dashboard.techlockdown.com/tutorials/andoff-overview"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-amber-500 hover:text-amber-400 transition-colors"
                 >
                   See managed mode guide <ExternalLink size={10} />
                 </a>
-              </div> */}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -397,7 +407,7 @@ function AndroidSetupSteps({
   )
 }
 
-// ── Windows Setup Wizard ──────────────────────────────────
+//  Windows Setup Wizard 
 
 function WindowsSetupSteps() {
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -482,7 +492,7 @@ function WindowsSetupSteps() {
   )
 }
 
-// ── Router Setup ──────────────────────────────────────────
+//  Router Setup ─
 
 function RouterSetupSteps({ gatewayId }: { gatewayId?: string | null }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -521,7 +531,7 @@ function RouterSetupSteps({ gatewayId }: { gatewayId?: string | null }) {
     {
       key: 'save',
       title: 'Save and restart your router',
-      description: 'Apply the changes. All devices on your network will now use Noori filtering.',
+      description: 'Apply the changes. All devices on your network will now use NoorI filtering.',
     },
   ]
 
@@ -561,7 +571,7 @@ function RouterSetupSteps({ gatewayId }: { gatewayId?: string | null }) {
   )
 }
 
-// ── Platform setup router ─────────────────────────────────
+//  Platform setup router ─
 
 function PlatformSetup({
   type,
@@ -581,7 +591,7 @@ function PlatformSetup({
   }
 }
 
-// ── Add device modal ──────────────────────────────────────
+//  Add device modal 
 
 function AddDeviceModal({
   open,
@@ -675,14 +685,14 @@ function AddDeviceModal({
   )
 }
 
-// ── Device icon helper ────────────────────────────────────
+//  Device icon helper 
 
 function DeviceIcon({ type, size = 16 }: { type: DeviceType; size?: number }) {
   if (type === 'macos' || type === 'windows') return <Monitor size={size} />
   return <Smartphone size={size} />
 }
 
-// ── Main page ─────────────────────────────────────────────
+//  Main page 
 
 export default function DeviceSetupPage() {
   const { data: devices = [], isLoading } = useDevices()
@@ -851,4 +861,3 @@ export default function DeviceSetupPage() {
     </div>
   )
 }
-

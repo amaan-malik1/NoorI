@@ -8,6 +8,7 @@ import {
   Eye, Users, BarChart2
 } from 'lucide-react'
 import FaqSection from '@/components/faq/FaqSection'
+import Logo from '@/components/ui/Logo'
 
 // ── Animated underline SVG ────────────────────────────────
 
@@ -332,10 +333,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 backdrop-blur-md bg-background/80">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-amber-500 rounded-lg flex items-center justify-center">
-              <Shield size={14} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-foreground">NoorI</span>
+            <Logo />
           </div>
 
           <div className="hidden md:flex items-center gap-7 text-sm text-foreground-muted">
@@ -580,7 +578,7 @@ export default function LandingPage() {
       <section id="compare" className="py-24 px-6">
         <div className="max-w-3xl mx-auto space-y-10">
           <div className="text-center space-y-3">
-            <h2 className="font-sora font-bold text-4xl text-foreground">NoorI vs TechLockdown</h2>
+            <h2 className="font-sora font-bold text-4xl text-foreground">NoorI vs Other's</h2>
             <p className="text-foreground-muted text-base">
               Same Cloudflare power — much simpler experience
             </p>
@@ -595,7 +593,7 @@ export default function LandingPage() {
             {/* Header */}
             <div className="grid grid-cols-3 gap-4 px-6 py-4 border-b border-border bg-background-elevated">
               <div className="text-xs font-semibold text-foreground-muted uppercase tracking-wider">Feature</div>
-              <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">TechLockdown</div>
+              <div className="text-center text-xs font-semibold text-foreground-muted uppercase tracking-wider">Other</div>
               <div className="text-center text-xs font-semibold text-amber-500 uppercase tracking-wider flex items-center justify-center gap-1.5">
                 <Shield size={11} /> NoorI
               </div>
@@ -605,7 +603,7 @@ export default function LandingPage() {
               <ComparisonRow feature="Simple setup (non-technical)" them={false} us={true} />
               <ComparisonRow feature="Smart protection presets" them={false} us={true} />
               <ComparisonRow feature="Protection score dashboard" them={false} us={true} />
-              <ComparisonRow feature="UPI / Razorpay payments" them={false} us={true} />
+              {/* <ComparisonRow feature="UPI / Razorpay payments" them={false} us={true} /> */}
               <ComparisonRow feature="Cloudflare Gateway integration" them={true} us={true} />
               <ComparisonRow feature="iOS Config Generator" them={true} us={true} />
               <ComparisonRow feature="Activity logs" them={true} us={true} />
@@ -761,10 +759,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-8 px-6">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-amber-500 rounded-md flex items-center justify-center">
-              <Shield size={12} className="text-background" />
-            </div>
-            <span className="font-sora font-semibold text-sm text-foreground">NoorI</span>
+            <Logo />
           </div>
           <div className="flex items-center gap-6 text-xs text-foreground-subtle">
             <Link to="/privacy" className="hover:text-foreground-muted transition-colors">Privacy Policy</Link>
