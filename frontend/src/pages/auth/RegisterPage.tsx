@@ -9,7 +9,6 @@ import { api } from '@/lib/api'
 import { getErrorMessage } from '@/lib/utils'
 import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
-import Logo from '@/components/ui/Logo'
 
 // ── Schema ────────────────────────────────────────────────
 const schema = z.object({
@@ -126,7 +125,10 @@ export default function RegisterPage() {
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center gap-3">
-            <Logo />
+            <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
+              <Shield size={18} className="text-background" />
+            </div>
+            <span className="font-sora font-semibold text-lg text-foreground">NoorI</span>
           </div>
 
           <div className="space-y-8">
@@ -136,7 +138,7 @@ export default function RegisterPage() {
                 <span className="text-gradient-amber">what matters.</span>
               </h1>
               <p className="text-foreground-muted text-base leading-relaxed max-w-sm">
-                Join thousands of families and individuals who use Noori to stay focused and protected online.
+                Join thousands of families and individuals who use NoorI to stay focused and protected online.
               </p>
             </div>
 
@@ -180,7 +182,10 @@ export default function RegisterPage() {
         >
           {/* Mobile logo */}
           <motion.div variants={item} className="flex items-center gap-3 lg:hidden">
-            <Logo />
+            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+              <Shield size={16} className="text-background" />
+            </div>
+            <span className="font-sora font-semibold text-foreground">NoorI</span>
           </motion.div>
 
           <motion.div variants={item} className="space-y-1.5">
@@ -280,13 +285,13 @@ export default function RegisterPage() {
           {/* Terms */}
           <motion.p variants={item} className="text-xs text-foreground-subtle text-center leading-relaxed">
             By creating an account you agree to our{' '}
-            <a href="#" className="text-foreground-muted hover:text-foreground transition-colors underline underline-offset-2">
+            <Link to="/terms" className="text-foreground-muted hover:text-foreground transition-colors underline underline-offset-2">
               Terms of Service
-            </a>{' '}
+            </Link>{' '}
             and{' '}
-            <a href="#" className="text-foreground-muted hover:text-foreground transition-colors underline underline-offset-2">
+            <Link to="/privacy" className="text-foreground-muted hover:text-foreground transition-colors underline underline-offset-2">
               Privacy Policy
-            </a>
+            </Link>
           </motion.p>
 
           <motion.p variants={item} className="text-center text-sm text-foreground-muted">

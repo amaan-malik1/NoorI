@@ -34,20 +34,17 @@ export async function verifyAndGetAccounts(
   email: string,
   globalKey: string
 ): Promise<CFAccount[]> {
-  // Use global key ONLY here — immediately discarded after this call
-  const res = await cfFetch<CFAccount[]>(
-    globalKey,
-    '/accounts',
-    {
-      headers: {
-        'X-Auth-Email': email,
-        'X-Auth-Key': globalKey,
-        Authorization: '', // override — global key uses email+key headers
-      },
-    }
-  )
-
-  return res.result
+  // Raw fetch — cfFetch always injects Bearer which overrides X-Auth-Key auth
+  const res = await fetch('https://api.cloudflare.com/client/v4/accounts', {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Auth-Email': email,
+      'X-Auth-Key': globalKey,
+    },
+  })
+  const data = await res.json() as { success: boolean; result: CFAccount[]; errors: { message: string }[] }
+  if (!data.success) throw new Error(data.errors?.[0]?.message ?? 'Failed to fetch accounts')
+  return data.result
 }
 
 // ─── Step 2: Create scoped token ──────────────────────────
@@ -61,6 +58,46 @@ export async function createScopedToken(
   globalKey: string,
   cfAccountId: string
 ): Promise<string> {
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Auth-Email': email,
+    'X-Auth-Key': globalKey,
+  }
+
+  // Step A — fetch real permission group IDs for this account.
+  // These IDs are account-specific and cannot be hardcoded.
+  const pgRes = await fetch(
+    `https://api.cloudflare.com/client/v4/user/tokens/permission_groups`,
+    { headers }
+  )
+  const pgData = await pgRes.json() as {
+    success: boolean
+    result: { id: string; name: string; scopes: string[] }[]
+  }
+
+  if (!pgData.success || !pgData.result?.length) {
+    throw new Error('Could not fetch Cloudflare permission groups')
+  }
+
+  // Find the three groups we need by name (names are stable across accounts)
+  const find = (name: string) => pgData.result.find(g => g.name === name)?.id
+
+  const ztReadId = find('Zero Trust Read')
+  const ztWriteId = find('Zero Trust Write')
+  const acctReadId = find('Account Settings Read')
+
+  console.log('[CF Connect] Permission group IDs:', { ztReadId, ztWriteId, acctReadId })
+
+  if (!ztReadId || !ztWriteId || !acctReadId) {
+    // Log all available groups so we can debug name mismatches
+    console.error('[CF Connect] Available groups:', pgData.result.map(g => g.name))
+    throw new Error(
+      'Could not find required Cloudflare permission groups. ' +
+      'Check backend logs for available group names.'
+    )
+  }
+
+  // Step B — create the scoped token using the real IDs
   const body = {
     name: `NoorI Gateway Token - ${new Date().toISOString()}`,
     policies: [
@@ -70,33 +107,35 @@ export async function createScopedToken(
           [`com.cloudflare.api.account.${cfAccountId}`]: '*',
         },
         permission_groups: [
-          { id: 'e086da7e2179491d842aea368d72607d' }, // Zero Trust Read
-          { id: '4a4a1a7a4e6b4a5a4a4a1a7a4e6b4a5a' }, // Zero Trust Write
-          { id: 'c1ffa8ca34df4a4291f5e7d5c2bdcbba' }, // Account Settings Read
+          { id: ztReadId },
+          { id: ztWriteId },
+          { id: acctReadId },
         ],
       },
     ],
-    condition: {
-      request_ip: { not_in: [] },
-    },
   }
 
-  const res = await cfFetch<{ value: string }>(
-    globalKey,
-    '/user/tokens',
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: {
-        'X-Auth-Email': email,
-        'X-Auth-Key': globalKey,
-        Authorization: '',
-      },
-    }
-  )
+  console.log(`[CF Connect] Creating scoped token for account: ${cfAccountId}`)
 
-  // value is only returned on creation — store it immediately
-  return res.result.value
+  const res = await fetch('https://api.cloudflare.com/client/v4/user/tokens', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+
+  const data = await res.json() as {
+    success: boolean
+    result: { value: string }
+    errors: { message: string }[]
+  }
+
+  if (!data.success) {
+    console.error('[CF Connect] Token creation raw response:', JSON.stringify(data, null, 2))
+    throw new Error(data.errors?.[0]?.message ?? 'Token creation failed')
+  }
+
+  console.log('[CF Connect] Token created successfully')
+  return data.result.value
 }
 
 // ─── Step 3: Verify scoped token works ───────────────────
@@ -114,10 +153,22 @@ export async function getOrCreateGatewayLocation(
   accountId: string
 ): Promise<CFGatewayLocation> {
   // List existing locations
-  const listRes = await cfFetch<CFGatewayLocation[]>(
-    token,
-    `/accounts/${cfAccountId}/gateway/locations`
-  )
+  let listRes: Awaited<ReturnType<typeof cfFetch<CFGatewayLocation[]>>>
+  try {
+    listRes = await cfFetch<CFGatewayLocation[]>(
+      token,
+      `/accounts/${cfAccountId}/gateway/locations`
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.toLowerCase().includes('account') || msg.toLowerCase().includes('initialized')) {
+      throw new Error(
+        'Zero Trust has not been activated on this Cloudflare account. ' +
+        'Please visit one.dash.cloudflare.com, log in, and complete the Zero Trust onboarding (takes ~30 seconds). Then try connecting again.'
+      )
+    }
+    throw err
+  }
 
   // Reuse existing NoorI location if found
   const existing = listRes.result?.find(l => l.name.startsWith('NoorI'))
@@ -243,32 +294,37 @@ export async function connectCloudflareAccount(
   globalKey: string,
   cfAccountId: string
 ): Promise<{ teamNameFound: boolean }> {
-  // 1. Create scoped token (global key used here only)
+  // 1. Create scoped token
   const scopedToken = await createScopedToken(email, globalKey, cfAccountId)
-  // globalKey is now out of scope — never stored
 
-  // 2. Verify the scoped token works
+  // 2. Verify token
+  console.log('[CF Connect] Step 2: verifying token...')
   await verifyScopedToken(scopedToken)
+  console.log('[CF Connect] Step 2: token verified')
 
   // 3. Get/create Gateway location
-  const location = await getOrCreateGatewayLocation(
-    scopedToken,
-    cfAccountId,
-    accountId
-  )
+  console.log('[CF Connect] Step 3: getting gateway location...')
+  const location = await getOrCreateGatewayLocation(scopedToken, cfAccountId, accountId)
+  console.log('[CF Connect] Step 3: location id =', location.id)
 
-  // 4. Fetch Zero Trust team name (subdomain users need for WARP login)
+  // 4. Team name
+  console.log('[CF Connect] Step 4: getting team name...')
   const teamName = await getTeamName(scopedToken, cfAccountId)
+  console.log('[CF Connect] Step 4: teamName =', teamName)
 
-  // 5. Ensure a WARP enrollment policy exists so users can connect devices
+  // 5. WARP enrollment policy
+  console.log('[CF Connect] Step 5: ensuring WARP enrollment policy...')
   await ensureWARPEnrollmentPolicy(scopedToken, cfAccountId)
+  console.log('[CF Connect] Step 5: done')
 
-  // 6. Enable Gateway with WARP mode so blocking rules actually apply
+  // 6. Gateway filtering
+  console.log('[CF Connect] Step 6: enabling gateway filtering...')
   await enableGatewayFiltering(scopedToken, cfAccountId)
+  console.log('[CF Connect] Step 6: done')
 
-  // 7. Encrypt and store scoped token
+  // 7. Save
+  console.log('[CF Connect] Step 7: saving to DB...')
   const encryptedToken = encrypt(scopedToken)
-
   await prisma.account.update({
     where: { id: accountId },
     data: {
@@ -281,6 +337,7 @@ export async function connectCloudflareAccount(
       lastSyncAt: new Date(),
     },
   })
+  console.log('[CF Connect] ✅ All steps complete')
 
   return { teamNameFound: !!teamName }
 }

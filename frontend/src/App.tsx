@@ -17,6 +17,9 @@ import ActivityPage from '@/pages/activity/ActivityPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import LandingPage from '@/pages/landing/LandingPage'
 import DashboardLayout from '@/components/layout/DashboardLayout'
+import TermsPage from '@/pages/legal/TermsPage'
+import PrivacyPage from '@/pages/legal/PrivacyPage'
+
 
 // ── Auth guard ────────────────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -65,6 +68,9 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
       <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+
 
       {/* Onboarding — protected but outside dashboard layout */}
       <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
@@ -79,7 +85,8 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="cloudflare/connect" element={<CloudflareWizardPage />} />
+        {/* <Route path="cloudflare/connect" element={<CloudflareWizardPage />} /> */}
+        <Route path="/dashboard/cloudflare/connect" element={<CloudflareWizardPage />} />
         <Route path="content-policy" element={<ContentPolicyPage />} />
         <Route path="devices" element={<DeviceSetupPage />} />
         <Route path="config-generator" element={<ConfigGeneratorPage />} />

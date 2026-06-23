@@ -52,7 +52,29 @@ export async function cfFetch<T>(
       continue
     }
 
-    const data = (await res.json()) as CFResponse<T>
+    // Safe parse — CF occasionally returns empty body, "null", or HTML
+    // on edge cases (e.g. gateway log endpoint with no traffic yet)
+    const text = await res.text()
+    let data: CFResponse<T>
+
+    try {
+      data = JSON.parse(text) as CFResponse<T>
+    } catch {
+      // Empty or non-JSON response
+      if (res.status === 204 || text.trim() === '' || text.trim() === 'null') {
+        // Treat as successful empty result — callers get [] or null
+        return {
+          result: [] as unknown as T,
+          success: true,
+          errors: [],
+          messages: [],
+        }
+      }
+      // Genuinely unexpected non-JSON — log and throw
+      throw new Error(
+        `Cloudflare API returned non-JSON (status ${res.status}): ${text.slice(0, 120)}`
+      )
+    }
 
     // Auth error — mark account as disconnected
     if (!data.success) {
